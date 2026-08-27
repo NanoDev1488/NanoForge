@@ -1,0 +1,30 @@
+name: NanoForge
+# ВАЖНО: версия указана буквально (не ${project.version}) специально для того, чтобы
+# GitHub Actions мог прочитать её напрямую через GitHub API из этого файла в репозитории
+# (см. .github/workflows/release.yml) и взять её же как тег релиза - без отдельного
+# файла версии, без ручного ввода версии при релизе и без дополнительных секретов/ключей.
+# При каждом новом релизе меняется ТОЛЬКО эта строка (и версия в pom.xml - для согласованности).
+version: 1.0.2
+main: ru.nanodev.nanoforge.NanoForgePlugin
+api-version: 1.16
+author: nanodev
+description: Фреймворк для создания аддонов к другим плагинам и мини-плагинов на YAML
+
+# Vault/WorldGuard - опциональные интеграции (см. integration/VaultBridge, WorldGuardBridge).
+# softdepend гарантирует, что если они установлены, то загрузятся ДО NanoForge -
+# так их сервисы (экономика/регионы) будут доступны сразу при первом использовании,
+# а не только начиная со второй проверки. Если их нет - NanoForge всё равно запускается.
+softdepend: [Vault, WorldGuard]
+
+commands:
+  nano:
+    description: Главная команда NanoForge
+    usage: /nano create <addon|new> ...
+    aliases: [nanoforge, nd]
+
+permissions:
+  nano.admin:
+    description: Доступ к управлению NanoForge (create/enable/disable/menu/edit/info/reload)
+    default: op
+
+# by t.me/NanoDev_mc

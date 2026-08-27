@@ -1,0 +1,85 @@
+name: Release
+
+# Срабатывает на каждый push в main/master. Версия и тег релиза НЕ передаются
+# руками и не хранятся отдельно нигде - они читаются напрямую из строки
+# "version:" в src/main/resources/plugin.yml через GitHub Contents API
+# (https://api.github.com/repos/<owner>/<repo>/contents/<path>).
+# Единственный токен, который используется - встроенный secrets.GITHUB_TOKEN,
+# который GitHub создаёт и подставляет автоматически для каждого workflow;
+# никаких дополнительных ключей/секретов заводить не нужно.
+on:
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Читаем версию из plugin.yml через GitHub API
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          API_URL="https://api.github.com/repos/${{ github.repository }}/contents/src/main/resources/plugin.yml?ref=${{ github.sha }}"
+
+          CONTENT=$(curl -sSf \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "$API_URL" | jq -r '.content' | base64 -d)
+
+          VERSION=$(echo "$CONTENT" | grep -m1 '^version:' | sed -E 's/^version:[[:space:]]*//' | tr -d '"'"'"' \r')
+
+          if [ -z "$VERSION" ]; then
+            echo "::error::Не удалось найти строку 'version:' в plugin.yml"
+            exit 1
+          fi
+
+          echo "Найдена версия: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Проверяем, нет ли уже такого тега (чтобы не дублировать релиз)
+        id: check_tag
+        run: |
+          if git ls-remote --tags origin | grep -q "refs/tags/${{ steps.version.outputs.tag }}$"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Тег ${{ steps.version.outputs.tag }} уже существует - релиз пропущен."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK 8
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Сборка (со всеми тестами)
+        if: steps.check_tag.outputs.exists == 'false'
+        run: mvn -B clean package
+
+      - name: Переименовываем jar под версию
+        if: steps.check_tag.outputs.exists == 'false'
+        run: cp target/NanoForge.jar "NanoForge-${{ steps.version.outputs.version }}.jar"
+
+      - name: Публикуем GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "NanoForge ${{ steps.version.outputs.version }}"
+          generate_release_notes: true
+          files: NanoForge-${{ steps.version.outputs.version }}.jar
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+# Чтобы выпустить новый релиз - просто поднять версию в
+# src/main/resources/plugin.yml (и для согласованности - в pom.xml) и запушить в main.
+# by t.me/NanoDev_mc

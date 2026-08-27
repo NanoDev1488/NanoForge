@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Build and run tests
+        run: mvn -B clean verify
+
+      - name: Upload built jar (artifact, не релиз)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NanoForge-jar
+          path: target/NanoForge.jar
+          if-no-files-found: error
+
+# by t.me/NanoDev_mc
