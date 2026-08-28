@@ -75,7 +75,11 @@ public class AddonStorage {
         long last = yaml.getLong("cooldowns." + cooldownKey + "." + player.getUniqueId(), 0);
         long elapsedMs = System.currentTimeMillis() - last;
         long remainingMs = (cooldownSeconds * 1000L) - elapsedMs;
-        return remainingMs > 0 ? (remainingMs / 1000L) + 1 : 0;
+        if (remainingMs <= 0) return 0;
+        // округление ВВЕРХ (потолок), а не "целые секунды + 1" - иначе остаток, который
+        // ровно кратен 1000мс (например, сразу после markCooldown), завышался на целую
+        // секунду (30000мс -> 30/1 -> 31 вместо ожидаемых 30).
+        return (remainingMs + 999) / 1000L;
     }
 
     public void markCooldown(Player player, String cooldownKey) {
