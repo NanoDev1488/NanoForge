@@ -3,7 +3,7 @@
 
   <groupId>ru.nanodev</groupId>
   <artifactId>NanoForge</artifactId>
-  <version>1.0.4</version>
+  <version>1.0.1</version>
   <packaging>jar</packaging>
 
   <properties>

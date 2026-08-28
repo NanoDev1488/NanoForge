@@ -46,7 +46,7 @@ class ActionLineParserTest {
         assertThat(action.get("type")).isEqualTo("call");
         assertThat(action.get("plugin")).isEqualTo("EssentialsX");
         assertThat(action.get("method")).isEqualTo("getVersion");
-        assertThat((List<?>) action.get("args")).containsExactly("arg1", "arg2");
+        assertThat((List<String>) action.get("args")).containsExactly("arg1", "arg2");
     }
 
     @Test

@@ -4,7 +4,7 @@ name: NanoForge
 # (см. .github/workflows/release.yml) и взять её же как тег релиза - без отдельного
 # файла версии, без ручного ввода версии при релизе и без дополнительных секретов/ключей.
 # При каждом новом релизе меняется ТОЛЬКО эта строка (и версия в pom.xml - для согласованности).
-version: 1.0.4
+version: 1.0.1
 main: ru.nanodev.nanoforge.NanoForgePlugin
 api-version: 1.16
 author: nanodev
