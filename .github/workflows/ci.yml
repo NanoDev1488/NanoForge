@@ -13,11 +13,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
+        # 17, а не 8 - только чтобы javac мог ПРОЧИТАТЬ spigot-api 1.20.4 (сам jar
+        # скомпилирован под Java 17). Выходной байткод плагина всё равно Java 8,
+        # см. maven.compiler.release в pom.xml.
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: '17'
           cache: maven
 
       - name: Build and run tests
