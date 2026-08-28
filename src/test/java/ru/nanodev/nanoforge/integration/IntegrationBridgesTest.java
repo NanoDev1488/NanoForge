@@ -1,12 +1,16 @@
 package ru.nanodev.nanoforge.integration;
 
-import be.seeseemelk.mockbukkit.MockBukkit;
-import be.seeseemelk.mockbukkit.ServerMock;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 /**
  * Проверяет, что мосты к Vault/WorldGuard/PlugMan/произвольному плагину
@@ -14,49 +18,58 @@ import static org.assertj.core.api.Assertions.assertThat;
  * возвращают false/null и не бросают исключений - именно это и требовалось
  * ("если плагина нет - пишет и отключается, а не падает с ошибкой").
  *
- * MockBukkit поднимает in-memory реализацию Bukkit API (ServerMock), поэтому
- * Bukkit.getPluginManager() и т.д. внутри этих классов реально на что-то
- * отвечают, а не падают с NullPointerException из-за отсутствия сервера.
- *
- * ВНИМАНИЕ: пакет/версия MockBukkit (be.seeseemelk.mockbukkit, координаты
- * com.github.seeseemelk:MockBukkit-v1.20 в pom.xml) стоит свериться с
- * актуальной на https://github.com/MockBukkit/MockBukkit перед первым
- * запуском - тестовая инфраструктура собиралась без доступа в сеть.
+ * Обычный Bukkit API мокается статически через Mockito (mockStatic,
+ * встроено в mockito-core с версии 5.x, отдельного mockito-inline не нужно) -
+ * никакого MockBukkit/PaperMC тут нет и не требуется.
  */
 class IntegrationBridgesTest {
 
-    private ServerMock server;
+    private MockedStatic<Bukkit> bukkitMock;
+    private PluginManager pluginManager;
 
     @BeforeEach
     void setUp() {
-        server = MockBukkit.mock();
+        // сбрасываем кеш "плагин найден/не найден" внутри мостов - иначе результат
+        // первого же вызова в рамках JVM "залипнет" на все остальные тесты подряд
+        VaultBridge.resetForTests();
+        WorldGuardBridge.resetForTests();
+
+        pluginManager = mock(PluginManager.class);
+        bukkitMock = mockStatic(Bukkit.class);
+        bukkitMock.when(Bukkit::getPluginManager).thenReturn(pluginManager);
     }
 
     @AfterEach
     void tearDown() {
-        MockBukkit.unmock();
+        bukkitMock.close();
     }
 
     @Test
     void reflectionBridgeReturnsNullWhenPluginNotInstalled() {
+        when(pluginManager.getPlugin("SomePluginThatDoesNotExist")).thenReturn(null);
+
         Object result = ReflectionBridge.call("SomePluginThatDoesNotExist", "someMethod", new String[0]);
         assertThat(result).isNull();
     }
 
     @Test
     void plugManBridgeIsUnavailableWhenNotInstalled() {
+        when(pluginManager.getPlugin("PlugMan")).thenReturn(null);
+        when(pluginManager.getPlugin("PlugManX")).thenReturn(null);
+
         assertThat(PlugManBridge.isAvailable()).isFalse();
     }
 
     @Test
     void plugManEnableCommandFormatIsCorrect() {
-        // это чистая строковая логика - не зависит от того, установлен ли PlugMan
+        // чистая строковая логика - не зависит от того, установлен ли PlugMan
         assertThat(PlugManBridge.enableCommand("EssentialsX")).isEqualTo("plugman enable EssentialsX");
     }
 
     @Test
     void vaultBridgeHasReturnsFalseWhenVaultNotInstalled() {
-        // VaultBridge не трогает player до проверки наличия Vault - null безопасен
+        // Vault не подключен как зависимость вообще, поэтому Class.forName внутри
+        // VaultBridge падает ещё до обращения к Bukkit - и это тоже безопасный путь.
         assertThat(VaultBridge.has(null, 10)).isFalse();
     }
 
@@ -67,6 +80,7 @@ class IntegrationBridgesTest {
 
     @Test
     void worldGuardBridgeReturnsFalseWhenNotInstalled() {
+        when(pluginManager.getPlugin("WorldGuard")).thenReturn(null);
         assertThat(WorldGuardBridge.isInRegion(null, "spawn")).isFalse();
     }
 }

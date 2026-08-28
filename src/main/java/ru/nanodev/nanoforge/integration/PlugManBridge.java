@@ -14,8 +14,12 @@ import org.bukkit.Bukkit;
 public class PlugManBridge {
 
     public static boolean isAvailable() {
-        return Bukkit.getPluginManager().getPlugin("PlugMan") != null
-                || Bukkit.getPluginManager().getPlugin("PlugManX") != null;
+        try {
+            return Bukkit.getPluginManager().getPlugin("PlugMan") != null
+                    || Bukkit.getPluginManager().getPlugin("PlugManX") != null;
+        } catch (Throwable t) {
+            return false; // Bukkit ещё не поднят/недоступен - считаем PlugMan недоступным, не падаем
+        }
     }
 
     /** Команда (без слэша) для включения плагина - синтаксис общий у PlugMan и PlugManX. */

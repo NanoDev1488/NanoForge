@@ -48,6 +48,13 @@ public class VaultBridge {
         return economyProvider != null;
     }
 
+    /** Только для тестов - сбрасывает закешированное состояние проверки Vault, чтобы каждый тест начинал с чистого листа. */
+    static void resetForTests() {
+        checked = false;
+        economyClass = null;
+        economyProvider = null;
+    }
+
     public static double getBalance(Player player) {
         if (!isAvailable()) return -1;
         try {

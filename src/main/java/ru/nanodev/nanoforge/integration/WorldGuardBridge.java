@@ -25,7 +25,11 @@ public class WorldGuardBridge {
 
     private static boolean pluginPresent() {
         if (available == null) {
-            available = Bukkit.getPluginManager().getPlugin("WorldGuard") != null;
+            try {
+                available = Bukkit.getPluginManager().getPlugin("WorldGuard") != null;
+            } catch (Throwable t) {
+                available = false; // Bukkit ещё не поднят/недоступен - считаем WorldGuard недоступным, не падаем
+            }
             if (!available && !warnedMissing) {
                 warnedMissing = true;
                 LOG.warning("[NanoForge] WorldGuard не найден - условие if: region работать не будет "
@@ -33,6 +37,12 @@ public class WorldGuardBridge {
             }
         }
         return available;
+    }
+
+    /** Только для тестов - сбрасывает закешированное состояние проверки WorldGuard. */
+    static void resetForTests() {
+        available = null;
+        warnedMissing = false;
     }
 
     /** @return true если игрок сейчас физически находится в регионе с указанным именем (регистронезависимо). */

@@ -3,7 +3,7 @@
 
   <groupId>ru.nanodev</groupId>
   <artifactId>NanoForge</artifactId>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <packaging>jar</packaging>
 
   <properties>
@@ -15,9 +15,6 @@
     <junit.version>5.10.2</junit.version>
     <mockito.version>5.11.0</mockito.version>
     <assertj.version>3.25.3</assertj.version>
-    <!-- MockBukkit версии привязаны к конкретной версии Bukkit API (v1.20 здесь) -
-         при смене spigot-api ниже проверь актуальную версию на https://github.com/MockBukkit/MockBukkit -->
-    <mockbukkit.version>3.9.0</mockbukkit.version>
   </properties>
 
   <repositories>
@@ -29,16 +26,13 @@
       <id>sonatype</id>
       <url>https://oss.sonatype.org/content/groups/public/</url>
     </repository>
-    <!-- JitPack - отсюда тянется MockBukkit -->
-    <repository>
-      <id>jitpack.io</id>
-      <url>https://jitpack.io</url>
-    </repository>
   </repositories>
 
   <dependencies>
-    <!-- Используй ту версию API, под которую собираешь: 1.16.5-R0.1-SNAPSHOT ... 1.21.1-R0.1-SNAPSHOT.
-         API обратно совместим для наших целей, поэтому одна сборка спокойно работает 1.16-1.21.x -->
+    <!-- Обычный Bukkit/Spigot API. Используй ту версию, под которую собираешь:
+         1.16.5-R0.1-SNAPSHOT ... 1.21.1-R0.1-SNAPSHOT. API обратно совместим
+         для наших целей, поэтому одна сборка спокойно работает 1.16-1.21.x.
+         Никакого PaperMC API здесь намеренно нет - только spigot-api. -->
     <dependency>
       <groupId>org.spigotmc</groupId>
       <artifactId>spigot-api</artifactId>
@@ -69,7 +63,10 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Mockito - мокаем Player/Plugin/CommandSender и т.д. без реального сервера -->
+    <!-- Mockito - мокает Player/PluginManager/Bukkit и т.д. без реального сервера.
+         С версии 5.x статический мок (mockStatic) работает из коробки, без
+         отдельного mockito-inline - именно им и заменена ранее использовавшаяся
+         MockBukkit (которая тянула PaperMC API транзитивно и не резолвилась). -->
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
@@ -88,16 +85,6 @@
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
       <version>${assertj.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- MockBukkit - полноценная имитация Bukkit-сервера в памяти: можно грузить
-         реальный плагин, эмулировать игроков, инвентари, события, команды и т.д.
-         без поднятия настоящего Minecraft-сервера. -->
-    <dependency>
-      <groupId>com.github.seeseemelk</groupId>
-      <artifactId>MockBukkit-v1.20</artifactId>
-      <version>${mockbukkit.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

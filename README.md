@@ -391,31 +391,28 @@ mvn clean package
 
 ## Тесты
 
-`pom.xml` подключает полноценный тестовый стек:
+`pom.xml` подключает тестовый стек:
 
 - **JUnit 5** (Jupiter) — основной движок тестов, включая параметризованные.
-- **Mockito** — мокает `Player`/`World` и т.д. без реального сервера.
+- **Mockito** — мокает `Player`/`PluginManager`/`Bukkit` и т.д. без реального
+  сервера. Статический мок `Bukkit` (`mockStatic`) работает из коробки с
+  Mockito 5.x, без отдельного `mockito-inline`.
 - **AssertJ** — читаемые ассерты (`assertThat(x).isEqualTo(y)`).
-- **MockBukkit** — полноценная имитация Bukkit-сервера в памяти для тестов,
-  которым реально нужен `Bukkit.getPluginManager()` и т.п.
+
+Никакого MockBukkit/PaperMC в зависимостях нет и не требуется — только
+обычный `spigot-api` (`provided`) для компиляции и Mockito для тестов рантайм-поведения.
 
 Написанные тесты покрывают: парсер чат-DSL для правки меню
 (`ActionLineParserTest`), подстановку плейсхолдеров (`PlaceholderUtilTest`),
 условия `if` включая права/мир/переменные/кулдауны
 (`ConditionCheckerTest`), хранилище переменных (`AddonStorageTest`),
-безопасное поведение интеграций при отсутствии Vault/WorldGuard/PlugMan
-(`IntegrationBridgesTest`) и границы поддерживаемых версий сервера
-(`StartupChecksTest`).
+безопасное поведение интеграций при отсутствии Vault/WorldGuard/PlugMan —
+через `mockStatic(Bukkit.class)` (`IntegrationBridgesTest`) и границы
+поддерживаемых версий сервера (`StartupChecksTest`).
 
 ```bash
 mvn test          # только тесты
 mvn clean verify  # тесты + сборка
 ```
-
-⚠️ Тестовая инфраструктура (версии MockBukkit/JUnit/Mockito в `pom.xml`)
-собиралась без доступа в сеть — при первом реальном запуске `mvn test`
-стоит свериться, что версия `MockBukkit-v1.20` в `pom.xml` актуальна на
-[github.com/MockBukkit/MockBukkit](https://github.com/MockBukkit/MockBukkit),
-и поднять при необходимости.
 
 <!-- by t.me/NanoDev_mc -->

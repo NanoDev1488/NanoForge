@@ -4,7 +4,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.Method;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -24,7 +23,13 @@ public class ReflectionBridge {
      * @return результат метода, или null если вызов не удался
      */
     public static Object call(String target, String method, String[] rawArgs) {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin(target);
+        Plugin plugin;
+        try {
+            plugin = Bukkit.getPluginManager().getPlugin(target);
+        } catch (Throwable t) {
+            LOG.warning("[NanoForge] Не удалось обратиться к серверу плагинов при вызове " + target + "#" + method + ": " + t);
+            return null;
+        }
         if (plugin == null) {
             LOG.warning("[NanoForge] Плагин не найден или выключен: " + target);
             return null;
@@ -44,7 +49,8 @@ public class ReflectionBridge {
             }
             LOG.warning("[NanoForge] Метод " + method + "(" + rawArgs.length + " арг.) не найден в " + target);
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "[NanoForge] Ошибка вызова " + target + "#" + method, e);
+            // одна строка вместо полного стектрейса - подробности в e.toString()/сообщении причины
+            LOG.warning("[NanoForge] Ошибка вызова " + target + "#" + method + ": " + e);
         }
         return null;
     }
