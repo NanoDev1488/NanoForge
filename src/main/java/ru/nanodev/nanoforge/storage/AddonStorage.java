@@ -35,11 +35,11 @@ public class AddonStorage {
     }
 
     public double getVarNumber(Player player, String key, double def) {
-        return yaml.getDouble(playerPath(player, key), def);
+        return parseDouble(yaml.get(playerPath(player, key)), def);
     }
 
     public double getGlobalVarNumber(String key, double def) {
-        return yaml.getDouble("global." + key, def);
+        return parseDouble(yaml.get("global." + key), def);
     }
 
     public void setVar(Player player, String key, String value) {
@@ -88,6 +88,22 @@ public class AddonStorage {
     private String playerPath(Player player, String key) {
         UUID id = player.getUniqueId();
         return "players." + id + "." + key;
+    }
+
+    /**
+     * setVar всегда пишет значение как СТРОКУ (это action-level API из YAML,
+     * там всё строки), поэтому обычный YamlConfiguration.getDouble() тут не
+     * годится - он читает только реально числовые узлы конфига и молча
+     * возвращает default для строкового "150". Разбираем вручную.
+     */
+    private double parseDouble(Object raw, double def) {
+        if (raw == null) return def;
+        if (raw instanceof Number) return ((Number) raw).doubleValue();
+        try {
+            return Double.parseDouble(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
     }
 
     private void save() {

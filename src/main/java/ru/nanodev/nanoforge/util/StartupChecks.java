@@ -26,7 +26,7 @@ public class StartupChecks {
      * юнит-тестом без поднятия сервера (см. StartupChecksTest).
      */
     public static VersionStatus classify(String bukkitVersionRaw) {
-        if (bukkitVersionRaw == null) return VersionStatus.UNKNOWN;
+        if (bukkitVersionRaw == null || bukkitVersionRaw.trim().isEmpty()) return VersionStatus.UNKNOWN;
         try {
             String mcVersion = bukkitVersionRaw.split("-")[0];
             int[] parsed = parse(mcVersion);
@@ -76,7 +76,11 @@ public class StartupChecks {
 
     private static int[] parse(String version) {
         String[] parts = version.split("\\.");
-        int major = parts.length > 0 ? safeInt(parts[0]) : 0;
+        // major должен строго распарситься как число - если тут мусор ("garbage" и т.п.),
+        // это НЕ версия Minecraft вообще, и результат должен быть UNKNOWN, а не тихий "0.0.0"
+        // (который раньше ошибочно классифицировался как BELOW_MIN). minor/patch мягче -
+        // это только доп. цифры, их отсутствие/кривизна не делает всю версию нераспознаваемой.
+        int major = Integer.parseInt(parts[0].trim());
         int minor = parts.length > 1 ? safeInt(parts[1]) : 0;
         int patch = parts.length > 2 ? safeInt(parts[2]) : 0;
         return new int[]{major, minor, patch};

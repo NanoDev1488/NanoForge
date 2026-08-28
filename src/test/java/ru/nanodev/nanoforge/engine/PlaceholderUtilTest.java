@@ -12,7 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class PlaceholderUtilTest {
@@ -26,13 +26,16 @@ class PlaceholderUtilTest {
 
     @BeforeEach
     void setUp() {
-        when(player.getName()).thenReturn("Steve");
-        when(player.getUniqueId()).thenReturn(uuid);
-        when(player.getWorld()).thenReturn(world);
-        when(world.getName()).thenReturn("world_nether");
-        when(player.getLocation()).thenReturn(new Location(world, 10, 64, -20));
-        when(player.getHealth()).thenReturn(15.0);
-        when(player.getLevel()).thenReturn(30);
+        // lenient() - потому что nullTextReturnsNull/nullPlayerLeavesTextUnchanged
+        // вообще не трогают мок player, и строгий MockitoExtension иначе ругается
+        // на "неиспользуемые" стабы (UnnecessaryStubbingException).
+        lenient().when(player.getName()).thenReturn("Steve");
+        lenient().when(player.getUniqueId()).thenReturn(uuid);
+        lenient().when(player.getWorld()).thenReturn(world);
+        lenient().when(world.getName()).thenReturn("world_nether");
+        lenient().when(player.getLocation()).thenReturn(new Location(world, 10, 64, -20));
+        lenient().when(player.getHealth()).thenReturn(15.0);
+        lenient().when(player.getLevel()).thenReturn(30);
     }
 
     @Test
