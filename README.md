@@ -397,28 +397,42 @@ mvn clean package
 
 ## Тесты
 
-`pom.xml` подключает тестовый стек:
+`pom.xml` подключает два уровня тестирования:
 
-- **JUnit 5** (Jupiter) — основной движок тестов, включая параметризованные.
-- **Mockito** — мокает `Player`/`PluginManager`/`Bukkit` и т.д. без реального
-  сервера. Статический мок `Bukkit` (`mockStatic`) работает из коробки с
-  Mockito 5.x, без отдельного `mockito-inline`.
-- **AssertJ** — читаемые ассерты (`assertThat(x).isEqualTo(y)`).
+- **Юнит-тесты изолированной логики** — JUnit 5, Mockito (включая
+  `mockStatic` для точечных подмен `Bukkit.*`, без реального сервера),
+  AssertJ. Покрывают: парсер чат-DSL для правки меню
+  (`ActionLineParserTest`), подстановку плейсхолдеров
+  (`PlaceholderUtilTest`), условия `if` включая права/мир/переменные/
+  кулдауны (`ConditionCheckerTest`), хранилище переменных
+  (`AddonStorageTest`), безопасное поведение интеграций при отсутствии
+  Vault/WorldGuard/PlugMan (`IntegrationBridgesTest`), границы
+  поддерживаемых версий сервера (`StartupChecksTest`).
 
-Никакого MockBukkit/PaperMC в зависимостях нет и не требуется — только
-обычный `spigot-api` (`provided`) для компиляции и Mockito для тестов рантайм-поведения.
+- **Интеграционные тесты целого плагина** — **MockBukkit**: полноценная
+  имитация Bukkit-сервера в памяти (игроки, инвентари, команды, права
+  `default: op` из `plugin.yml`). `PluginIntegrationTest` грузит НАСТОЯЩИЙ
+  `NanoForgePlugin` (не отдельные куски логики, а весь `onEnable()`) и
+  прогоняет по нему реальные команды: `/nano list` от оператора и обычного
+  игрока, создание аддона командой с проверкой, что `addon.yml` реально
+  появился на диске, включение аддона и открытие сгенерированного по
+  умолчанию GUI-меню с проверкой размера инвентаря.
 
-Написанные тесты покрывают: парсер чат-DSL для правки меню
-(`ActionLineParserTest`), подстановку плейсхолдеров (`PlaceholderUtilTest`),
-условия `if` включая права/мир/переменные/кулдауны
-(`ConditionCheckerTest`), хранилище переменных (`AddonStorageTest`),
-безопасное поведение интеграций при отсутствии Vault/WorldGuard/PlugMan —
-через `mockStatic(Bukkit.class)` (`IntegrationBridgesTest`) и границы
-поддерживаемых версий сервера (`StartupChecksTest`).
+  MockBukkit тянет `paper-api` как транзитивную зависимость (сам реализует
+  Bukkit API поверх Paper), поэтому в `pom.xml` подключён репозиторий
+  PaperMC (`repo.papermc.io`) — без него резолв падает с "artifact not
+  found: io.papermc.paper:paper-api...".
 
 ```bash
 mvn test          # только тесты
 mvn clean verify  # тесты + сборка
 ```
+
+⚠️ Версии MockBukkit/её транзитивных зависимостей подбирались без доступа
+в сеть — если при первом реальном запуске резолв или сборка тестов
+упадёт, пришли текст ошибки (как в прошлые разы) и разберём точечно;
+`PluginIntegrationTest` — единственный файл, зависящий от MockBukkit,
+остальные тесты в проекте от неё не зависят и не пострадают, даже если
+именно с ней что-то не так.
 
 <!-- by t.me/NanoDev_mc -->
