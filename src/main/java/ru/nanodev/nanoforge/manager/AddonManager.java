@@ -81,9 +81,15 @@ public class AddonManager {
     }
 
     public void disableAll() {
+        // ВАЖНО: здесь НЕ вызываем disableInternal() (он персистит enabled=false на диск) -
+        // disableAll() используется только внутри reloadAll(), и её задача - снять текущие
+        // Bukkit-регистрации перед перечитыванием конфигов, а НЕ погасить админский флаг
+        // "включён" на диске. Раньше это было багом: reloadAll() = disableAll() + loadAll(),
+        // и loadAll() читал addon.yml, который disableAll() только что переписал в
+        // enabled=false - в итоге /nano reload необратимо выключал вообще все аддоны.
         for (Addon a : new ArrayList<>(addons.values())) {
             if (a.isEnabled()) {
-                disableInternal(a);
+                cleanupRegistrations(a.getName());
             }
         }
     }
@@ -159,12 +165,12 @@ public class AddonManager {
 
     /** Кладёт в yaml пример меню "main" с подменю "sub" - демонстрирует message/call/openmenu/closemenu. */
     private void addExampleMenus(YamlConfiguration yaml, String targetPlugin) {
-        yaml.set("menus.main.title", "&8Меню аддона");
+        yaml.set("menus.main.title", "&8★ Меню аддона ★");
         yaml.set("menus.main.rows", 3);
 
         Map<String, Object> infoItem = new LinkedHashMap<>();
         infoItem.put("material", "PAPER");
-        infoItem.put("name", "&fПростое действие");
+        infoItem.put("name", "&f✔ Простое действие");
         infoItem.put("lore", Arrays.asList("&7Клик - сообщение в чат", "&7(есть плейсхолдер {player})"));
         infoItem.put("actions", singleAction(msgAction("&aТы нажал на кнопку, {player}!")));
         yaml.set("menus.main.items.11", infoItem);
@@ -172,7 +178,7 @@ public class AddonManager {
         // пример кнопки с условием доступа по праву
         Map<String, Object> adminItem = new LinkedHashMap<>();
         adminItem.put("material", "GOLD_INGOT");
-        adminItem.put("name", "&6Только для админов");
+        adminItem.put("name", "&6⚠ Только для админов");
         adminItem.put("lore", Arrays.asList("&7Пример if: permission"));
         Map<String, Object> adminAction = msgAction("&aДоступ разрешён - у тебя есть право.");
         Map<String, Object> ifCond = new LinkedHashMap<>();
@@ -184,7 +190,7 @@ public class AddonManager {
 
         Map<String, Object> subItem = new LinkedHashMap<>();
         subItem.put("material", "CHEST");
-        subItem.put("name", "&eПодменю");
+        subItem.put("name", "&e➤ Подменю");
         subItem.put("lore", Arrays.asList("&7Открывает вложенное меню"));
         Map<String, Object> openSub = new LinkedHashMap<>();
         openSub.put("type", "openmenu");
@@ -194,19 +200,19 @@ public class AddonManager {
 
         Map<String, Object> closeItem = new LinkedHashMap<>();
         closeItem.put("material", "BARRIER");
-        closeItem.put("name", "&cЗакрыть");
+        closeItem.put("name", "&c✖ Закрыть");
         Map<String, Object> close = new LinkedHashMap<>();
         close.put("type", "closemenu");
         closeItem.put("actions", java.util.Collections.singletonList(close));
         yaml.set("menus.main.items.15", closeItem);
 
         // подменю "sub" - тут же пример вызова метода целевого плагина через GUI
-        yaml.set("menus.sub.title", "&8Подменю - действия с плагином");
+        yaml.set("menus.sub.title", "&8➤ Подменю - действия с плагином");
         yaml.set("menus.sub.rows", 3);
 
         Map<String, Object> callItem = new LinkedHashMap<>();
         callItem.put("material", "COMMAND_BLOCK");
-        callItem.put("name", "&bВызвать метод плагина");
+        callItem.put("name", "&b✔ Вызвать метод плагина");
         List<String> lore = new ArrayList<>();
         lore.add("&7type: call - дёргает метод");
         lore.add("&7целевого плагина через рефлексию");
@@ -226,7 +232,7 @@ public class AddonManager {
 
         Map<String, Object> backItem = new LinkedHashMap<>();
         backItem.put("material", "ARROW");
-        backItem.put("name", "&7Назад");
+        backItem.put("name", "&7➤ Назад");
         Map<String, Object> back = new LinkedHashMap<>();
         back.put("type", "openmenu");
         back.put("menu", "main");
@@ -251,7 +257,7 @@ public class AddonManager {
         List<Map<String, Object>> list = new ArrayList<>();
         Map<String, Object> msg = new LinkedHashMap<>();
         msg.put("type", "broadcast");
-        msg.put("text", "&e{player} зашёл на сервер (пример события из аддона)");
+        msg.put("text", "&e➤ {player} зашёл на сервер (пример события из аддона)");
         list.add(msg);
         return list;
     }

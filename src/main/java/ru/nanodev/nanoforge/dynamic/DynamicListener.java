@@ -40,7 +40,6 @@ public class DynamicListener implements Listener {
         this.plugin = plugin;
     }
 
-    @SuppressWarnings("unchecked")
     public boolean register(Addon addon, String eventKey) {
         Class<? extends Event> eventClass = resolveEventClass(eventKey);
         if (eventClass == null) {
@@ -70,6 +69,7 @@ public class DynamicListener implements Listener {
         return true;
     }
 
+    @SuppressWarnings("unchecked")
     private Class<? extends Event> resolveEventClass(String name) {
         if (name.contains(".")) {
             try {
