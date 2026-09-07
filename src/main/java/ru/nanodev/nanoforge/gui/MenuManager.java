@@ -74,6 +74,18 @@ public class MenuManager implements Listener {
     }
 
     /** Открыть меню menuKey из аддона addonName для игрока (обычный режим). */
+    /** Закрывает открытое меню этого аддона у всех игроков, у кого оно сейчас открыто (аддон выключается/удаляется). */
+    public void closeMenusForAddon(String addonName) {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            org.bukkit.inventory.InventoryView view = p.getOpenInventory();
+            if (view == null) continue;
+            Object holder = view.getTopInventory().getHolder();
+            if (holder instanceof NanoMenuHolder && ((NanoMenuHolder) holder).getAddonName().equalsIgnoreCase(addonName)) {
+                p.closeInventory();
+            }
+        }
+    }
+
     public boolean open(Player player, String addonName, String menuKey) {
         return open(player, addonName, menuKey, false);
     }

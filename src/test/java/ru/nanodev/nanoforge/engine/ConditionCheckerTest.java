@@ -207,6 +207,61 @@ class ConditionCheckerTest {
 
         assertThat(ConditionChecker.check(action, player, addon)).isTrue();
     }
+
+    // ---------- time ----------
+
+    @Test
+    void timeWithinSimpleRangePasses() {
+        lenient().when(player.getWorld()).thenReturn(world);
+        when(world.getTime()).thenReturn(15000L);
+        Map<String, Object> timeBlock = new LinkedHashMap<>();
+        timeBlock.put("min", 13000);
+        timeBlock.put("max", 23000);
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("time", timeBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void timeOutsideSimpleRangeFails() {
+        lenient().when(player.getWorld()).thenReturn(world);
+        when(world.getTime()).thenReturn(5000L);
+        Map<String, Object> timeBlock = new LinkedHashMap<>();
+        timeBlock.put("min", 13000);
+        timeBlock.put("max", 23000);
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("time", timeBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+    }
+
+    @Test
+    void timeRangeWrappingPastMidnightPasses() {
+        // min > max означает диапазон "через полночь" (например ночь: 22000 -> 2000)
+        lenient().when(player.getWorld()).thenReturn(world);
+        when(world.getTime()).thenReturn(23500L);
+        Map<String, Object> timeBlock = new LinkedHashMap<>();
+        timeBlock.put("min", 22000);
+        timeBlock.put("max", 2000);
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("time", timeBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void timeRangeWrappingPastMidnightFailsInDaytime() {
+        lenient().when(player.getWorld()).thenReturn(world);
+        when(world.getTime()).thenReturn(8000L);
+        Map<String, Object> timeBlock = new LinkedHashMap<>();
+        timeBlock.put("min", 22000);
+        timeBlock.put("max", 2000);
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("time", timeBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+    }
 }
 
 // by t.me/NanoDev_mc

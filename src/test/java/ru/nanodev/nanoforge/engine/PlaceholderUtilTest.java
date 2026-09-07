@@ -91,6 +91,29 @@ class PlaceholderUtilTest {
         String text = "Просто обычный текст без плейсхолдеров";
         assertThat(PlaceholderUtil.apply(text, player)).isEqualTo(text);
     }
+
+    @Test
+    void substitutesArgsJoined() {
+        assertThat(PlaceholderUtil.apply("аргументы: {args}", player, new String[]{"foo", "bar", "baz"}))
+                .isEqualTo("аргументы: foo bar baz");
+    }
+
+    @Test
+    void substitutesIndividualArgs() {
+        assertThat(PlaceholderUtil.apply("{arg1}-{arg2}", player, new String[]{"a", "b"})).isEqualTo("a-b");
+    }
+
+    @Test
+    void missingArgPlaceholderStaysLiteral() {
+        // {arg3} не существует в массиве из 2 элементов - должен остаться как есть, не падать
+        assertThat(PlaceholderUtil.apply("{arg1}-{arg3}", player, new String[]{"a", "b"})).isEqualTo("a-{arg3}");
+    }
+
+    @Test
+    void nullArgsArrayLeavesArgPlaceholdersUntouched() {
+        String text = "{args} {arg1}";
+        assertThat(PlaceholderUtil.apply(text, player, null)).isEqualTo(text);
+    }
 }
 
 // by t.me/NanoDev_mc

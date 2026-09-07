@@ -94,6 +94,96 @@ public class AddonManager {
         }
     }
 
+    /** Клонирует существующий аддон под новым именем. Копия всегда стартует выключенной. */
+    public Addon duplicate(String sourceName, String newName) {
+        Addon source = get(sourceName);
+        if (source == null || get(newName) != null) return null;
+
+        File newFolder = new File(addonsFolder, newName);
+        newFolder.mkdirs();
+        File newFile = new File(newFolder, "addon.yml");
+
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(source.getFile());
+        yaml.set("name", newName);
+        yaml.set("enabled", false);
+
+        Addon addon = new Addon(newFile, yaml);
+        addon.save();
+        addons.put(newName.toLowerCase(), addon);
+
+        // storage.yml (переменные/кулдауны) копии НЕ переносим - у копии своя история с нуля.
+        // target-api.txt перенести можно, он не завязан на конкретный экземпляр аддона.
+        if (source.getTargetApiFile().exists()) {
+            try {
+                java.nio.file.Files.copy(source.getTargetApiFile().toPath(), addon.getTargetApiFile().toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.io.IOException ignored) {
+            }
+        }
+        return addon;
+    }
+
+    /** Пакует папку аддона в один .zip для переноса на другой сервер. Возвращает файл архива. */
+    public File exportAddon(String name) throws java.io.IOException {
+        Addon addon = get(name);
+        if (addon == null) return null;
+
+        File exportsDir = new File(addonsFolder.getParentFile(), "exports");
+        exportsDir.mkdirs();
+        File zipFile = new File(exportsDir, name + ".nanoaddon.zip");
+
+        File[] files = addon.getFolder().listFiles(File::isFile);
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(zipFile))) {
+            if (files != null) {
+                for (File f : files) {
+                    zos.putNextEntry(new java.util.zip.ZipEntry(f.getName()));
+                    java.nio.file.Files.copy(f.toPath(), zos);
+                    zos.closeEntry();
+                }
+            }
+        }
+        return zipFile;
+    }
+
+    /**
+     * Импортирует аддон из .zip (созданного exportAddon), ищет файл в
+     * plugins/NanoForge/imports/<имя_файла>. Импортированный аддон всегда
+     * стартует выключенным - его нужно явно включить после проверки.
+     */
+    public Addon importAddon(String zipFileName, String newName) throws java.io.IOException {
+        if (get(newName) != null) return null;
+
+        File importsDir = new File(addonsFolder.getParentFile(), "imports");
+        File zipFile = new File(importsDir, zipFileName);
+        if (!zipFile.exists()) {
+            throw new java.io.IOException("файл не найден: plugins/NanoForge/imports/" + zipFileName);
+        }
+
+        File folder = new File(addonsFolder, newName);
+        folder.mkdirs();
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(new java.io.FileInputStream(zipFile))) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+                File out = new File(folder, entry.getName());
+                java.nio.file.Files.copy(zis, out.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+
+        File yamlFile = new File(folder, "addon.yml");
+        if (!yamlFile.exists()) {
+            throw new java.io.IOException("в архиве нет addon.yml - это не экспорт NanoForge?");
+        }
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(yamlFile);
+        yaml.set("name", newName);
+        yaml.set("enabled", false);
+
+        Addon addon = new Addon(yamlFile, yaml);
+        addon.save();
+        addons.put(newName.toLowerCase(), addon);
+        return addon;
+    }
+
     // ---------- создание ----------
 
     /** /nano create addon <targetPlugin> <name>
@@ -345,6 +435,11 @@ public class AddonManager {
             // Полный unregister: снимает этот Listener-объект со ВСЕХ HandlerList
             // Bukkit'а разом, независимо от того, на какие события он был подписан.
             org.bukkit.event.HandlerList.unregisterAll(listener);
+        }
+        // если у кого-то прямо сейчас открыто GUI-меню этого аддона - закрываем,
+        // чтобы клик по кнопке не обращался к логике, которой только что не стало
+        if (plugin.getMenuManager() != null) {
+            plugin.getMenuManager().closeMenusForAddon(addonName);
         }
     }
 

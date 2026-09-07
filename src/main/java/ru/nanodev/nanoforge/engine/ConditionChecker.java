@@ -22,6 +22,8 @@ import java.util.Map;
  *  - var_at_least: { key: "coins", value: "10" }   -> числовая переменная аддона >= значения
  *  - cooldown: { seconds: 30, key: "heal" }        -> не чаще раза в N секунд на игрока;
  *                                                      при успешном прохождении кулдаун сразу обновляется
+ *  - time: { min: 13000, max: 23000 }              -> игровое время мира игрока (тики 0-24000,
+ *                                                      диапазон может "переходить через полночь": min > max)
  *  - deny_message: "&cНет доступа"    -> сообщение при провале любого из условий выше (необязательно;
  *                                        для cooldown можно использовать {cooldown} - секунды до конца)
  */
@@ -56,6 +58,11 @@ public class ConditionChecker {
         }
         if (passed && cond.contains("eco_at_least")) {
             passed = player != null && VaultBridge.has(player, cond.getDouble("eco_at_least"));
+        }
+        if (passed && cond.contains("time")) {
+            ConfigurationSection tc = cond.getConfigurationSection("time");
+            passed = player != null && tc != null
+                    && withinTimeRange(player.getWorld().getTime(), tc.getLong("min", 0), tc.getLong("max", 24000));
         }
         // var_equals/var_at_least/cooldown для видимости пунктов не поддерживаются намеренно -
         // видимость должна быть дешёвой проверкой без побочных эффектов (кулдаун их имеет).
@@ -112,6 +119,12 @@ public class ConditionChecker {
                 addon.getStorage().markCooldown(player, key); // кулдаун проходит - сразу отмечаем использование
             }
         }
+        if (passed && cond.containsKey("time")) {
+            Map<String, Object> tc = (Map<String, Object>) cond.get("time");
+            long min = (long) toDouble(tc.get("min"), 0);
+            long max = (long) toDouble(tc.get("max"), 24000);
+            passed = player != null && withinTimeRange(player.getWorld().getTime(), min, max);
+        }
 
         if (!passed && sendDenyMessage && player != null && cond.containsKey("deny_message")) {
             String raw = String.valueOf(cond.get("deny_message"));
@@ -132,6 +145,15 @@ public class ConditionChecker {
         } catch (NumberFormatException e) {
             return def;
         }
+    }
+
+    /** Проверяет тики [0-24000) на попадание в диапазон [min, max]. Если min > max - диапазон "через полночь". */
+    private static boolean withinTimeRange(long time, long min, long max) {
+        time = ((time % 24000) + 24000) % 24000;
+        if (min <= max) {
+            return time >= min && time <= max;
+        }
+        return time >= min || time <= max;
     }
 }
 

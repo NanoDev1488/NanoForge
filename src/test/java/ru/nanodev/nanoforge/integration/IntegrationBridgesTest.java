@@ -33,6 +33,7 @@ class IntegrationBridgesTest {
         // первого же вызова в рамках JVM "залипнет" на все остальные тесты подряд
         VaultBridge.resetForTests();
         WorldGuardBridge.resetForTests();
+        PlaceholderAPIBridge.resetForTests();
 
         pluginManager = mock(PluginManager.class);
         bukkitMock = mockStatic(Bukkit.class);
@@ -82,6 +83,18 @@ class IntegrationBridgesTest {
     void worldGuardBridgeReturnsFalseWhenNotInstalled() {
         when(pluginManager.getPlugin("WorldGuard")).thenReturn(null);
         assertThat(WorldGuardBridge.isInRegion(null, "spawn")).isFalse();
+    }
+
+    @Test
+    void placeholderApiBridgeReturnsTextUnchangedWhenNotInstalled() {
+        when(pluginManager.getPlugin("PlaceholderAPI")).thenReturn(null);
+        String text = "Привет, {player}!";
+        assertThat(PlaceholderAPIBridge.apply(text, null)).isEqualTo(text);
+    }
+
+    @Test
+    void placeholderApiBridgeReturnsNullTextAsNull() {
+        assertThat(PlaceholderAPIBridge.apply(null, null)).isNull();
     }
 }
 

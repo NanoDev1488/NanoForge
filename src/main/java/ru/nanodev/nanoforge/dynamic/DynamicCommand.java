@@ -36,7 +36,7 @@ public class DynamicCommand extends Command {
         }
         try {
             ActionRunner.run(addon.getCommandActions(cmdKey), sender, null,
-                    NanoForgePlugin.get().getMenuManager(), addon);
+                    NanoForgePlugin.get().getMenuManager(), addon, args);
         } catch (Throwable t) {
             // без этого Bukkit сам напечатал бы игроку/в консоль "An internal error occurred
             // while attempting to perform this command" вместе с полным стектрейсом.

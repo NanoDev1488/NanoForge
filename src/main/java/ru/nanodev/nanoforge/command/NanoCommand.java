@@ -71,10 +71,82 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleReload(sender);
             case "info":
                 return handleInfo(sender, args);
+            case "duplicate":
+                return handleDuplicate(sender, args);
+            case "export":
+                return handleExport(sender, args);
+            case "import":
+                return handleImport(sender, args);
             default:
                 sendHelp(sender);
                 return true;
         }
+    }
+
+    private boolean handleDuplicate(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano duplicate <аддон> <новое_имя>");
+            return true;
+        }
+        String source = args[1];
+        String newName = args[2];
+        if (manager.get(source) == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + source);
+            return true;
+        }
+        if (manager.get(newName) != null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон с именем") + " '" + newName + "' " + f("уже существует."));
+            return true;
+        }
+        Addon copy = manager.duplicate(source, newName);
+        if (copy == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось создать копию."));
+            return true;
+        }
+        sender.sendMessage(ChatColor.GREEN + "✔ " + f("Создана копия") + " '" + source + "' → '" + newName + "' "
+                + f("(выключена, включи вручную)."));
+        return true;
+    }
+
+    private boolean handleExport(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano export <аддон>");
+            return true;
+        }
+        String name = args[1];
+        if (manager.get(name) == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + name);
+            return true;
+        }
+        try {
+            java.io.File zip = manager.exportAddon(name);
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Аддон экспортирован:") + " " + zip.getPath());
+        } catch (java.io.IOException e) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Ошибка экспорта:") + " " + e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleImport(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano import <файл.zip> <новое_имя>");
+            sender.sendMessage(ChatColor.GRAY + f("Файл должен лежать в") + " plugins/NanoForge/imports/");
+            return true;
+        }
+        String fileName = args[1];
+        String newName = args[2];
+        if (manager.get(newName) != null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон с именем") + " '" + newName + "' " + f("уже существует."));
+            return true;
+        }
+        try {
+            Addon addon = manager.importAddon(fileName, newName);
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Аддон импортирован как") + " '" + addon.getName() + "' "
+                    + f("(выключен, проверь и включи вручную)."));
+        } catch (java.io.IOException e) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Ошибка импорта:") + " " + e.getMessage());
+        }
+        return true;
     }
 
     private boolean handleReload(CommandSender sender) {
@@ -273,12 +345,16 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano edit <аддон> <меню> " + ChatColor.GRAY + "- " + f("редактировать меню перетаскиванием предметов"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano info <аддон> " + ChatColor.GRAY + "- " + f("подробности об аддоне"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano reload " + ChatColor.GRAY + "- " + f("перечитать все аддоны с диска"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano duplicate <аддон> <имя> " + ChatColor.GRAY + "- " + f("клонировать аддон"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano export <аддон> " + ChatColor.GRAY + "- " + f("упаковать в .zip для переноса"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano import <файл.zip> <имя> " + ChatColor.GRAY + "- " + f("импортировать из imports/"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload"), args[0]);
+            return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
+                    "duplicate", "export", "import"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
@@ -286,7 +362,8 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable")
-                || args[0].equalsIgnoreCase("menu") || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info"))) {
+                || args[0].equalsIgnoreCase("menu") || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info")
+                || args[0].equalsIgnoreCase("duplicate") || args[0].equalsIgnoreCase("export"))) {
             return filter(manager.getAddonNames(), args[1]);
         }
 

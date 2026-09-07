@@ -10,11 +10,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import ru.nanodev.nanoforge.NanoForgePlugin;
+import ru.nanodev.nanoforge.model.Addon;
 
 import java.io.File;
 import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 /**
@@ -100,6 +102,88 @@ class AddonManagerTest {
         manager.reloadAll();
 
         assertThat(manager.get("TestAddon3").isEnabled()).isFalse();
+    }
+
+    // ---------- duplicate ----------
+
+    @Test
+    void duplicateCopiesYamlContentUnderNewName() {
+        manager.createNew("Original");
+        manager.enable("Original");
+
+        Addon copy = manager.duplicate("Original", "Copy");
+
+        assertThat(copy).isNotNull();
+        assertThat(copy.getName()).isEqualTo("Copy");
+        // копия всегда стартует выключенной, даже если оригинал был включён
+        assertThat(copy.isEnabled()).isFalse();
+        assertThat(new File(tempDir, "Copy/addon.yml")).exists();
+    }
+
+    @Test
+    void duplicateFailsWhenSourceMissing() {
+        assertThat(manager.duplicate("NoSuchAddon", "Copy")).isNull();
+    }
+
+    @Test
+    void duplicateFailsWhenTargetNameAlreadyExists() {
+        manager.createNew("A");
+        manager.createNew("B");
+        assertThat(manager.duplicate("A", "B")).isNull();
+    }
+
+    // ---------- export / import ----------
+
+    @Test
+    void exportCreatesZipContainingAddonYml() throws java.io.IOException {
+        manager.createNew("ExportMe");
+
+        File zip = manager.exportAddon("ExportMe");
+
+        assertThat(zip).exists();
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(zip)) {
+            assertThat(zf.getEntry("addon.yml")).isNotNull();
+        }
+    }
+
+    @Test
+    void exportReturnsNullForMissingAddon() throws java.io.IOException {
+        assertThat(manager.exportAddon("NoSuchAddon")).isNull();
+    }
+
+    @Test
+    void importRoundTripRestoresAddon() throws java.io.IOException {
+        manager.createNew("RoundTrip");
+        File zip = manager.exportAddon("RoundTrip");
+
+        // AddonManager ищет imports/ рядом с addons/ (родитель addonsFolder), поэтому
+        // используем отдельный менеджер с чистыми путями addons2/ + imports/ рядом
+        File addonsSubfolder = new File(tempDir, "addons2");
+        addonsSubfolder.mkdirs();
+        AddonManager importManager = new AddonManager(plugin, addonsSubfolder);
+
+        File importsDir = new File(tempDir, "imports");
+        importsDir.mkdirs();
+        java.nio.file.Files.copy(zip.toPath(), new File(importsDir, "roundtrip.zip").toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+        Addon imported = importManager.importAddon("roundtrip.zip", "Imported");
+
+        assertThat(imported).isNotNull();
+        assertThat(imported.getName()).isEqualTo("Imported");
+        assertThat(imported.isEnabled()).isFalse();
+    }
+
+    @Test
+    void importThrowsWhenFileMissing() {
+        assertThatThrownBy(() -> manager.importAddon("does-not-exist.zip", "Whatever"))
+                .isInstanceOf(java.io.IOException.class);
+    }
+
+    @Test
+    void importFailsWhenNameAlreadyTaken() throws java.io.IOException {
+        manager.createNew("Existing");
+        assertThat(manager.importAddon("anything.zip", "Existing")).isNull();
     }
 }
 

@@ -36,7 +36,11 @@ public class TargetInspector {
                 return false;
             }
 
-            List<String> classNames = listClassNames(jarFile);
+            List<String> allClassNames = listClassNames(jarFile);
+            String packagePrefix = pluginPackagePrefix(targetPlugin);
+            List<String> classNames = packagePrefix.isEmpty()
+                    ? allClassNames
+                    : allClassNames.stream().filter(n -> n.startsWith(packagePrefix)).collect(Collectors.toList());
             ClassLoader loader = targetPlugin.getClass().getClassLoader();
 
             try (PrintWriter out = new PrintWriter(outputFile, "UTF-8")) {
@@ -44,7 +48,10 @@ public class TargetInspector {
                 out.println("Версия: " + targetPlugin.getDescription().getVersion());
                 out.println("Главный класс: " + targetPlugin.getClass().getName());
                 out.println("Jar: " + jarFile.getAbsolutePath());
-                out.println("Всего классов в jar: " + classNames.size());
+                out.println("Всего классов в jar: " + allClassNames.size()
+                        + (classNames.size() != allClassNames.size()
+                        ? " (показаны только из пакета '" + packagePrefix + "': " + classNames.size() + ")"
+                        : ""));
                 out.println();
                 out.println("Файл сгенерирован автоматически при создании аддона.");
                 out.println("Используй имена классов/методов ниже для action'ов type: call");
@@ -73,6 +80,20 @@ public class TargetInspector {
             writeError(outputFile, targetPlugin, "Ошибка дампа: " + e);
             return false;
         }
+    }
+
+    /**
+     * Первые два сегмента пакета главного класса плагина (например "com.example" для
+     * "com.example.myplugin.MyPlugin") - используется как фильтр, чтобы не дампить
+     * шейднутые в jar сторонние библиотеки (org.bukkit, com.google, org.yaml и т.д.),
+     * оставляя только код самого плагина.
+     */
+    private static String pluginPackagePrefix(Plugin plugin) {
+        Package pkg = plugin.getClass().getPackage();
+        if (pkg == null) return "";
+        String[] parts = pkg.getName().split("\\.");
+        if (parts.length >= 2) return parts[0] + "." + parts[1];
+        return pkg.getName();
     }
 
     private static void writeClass(PrintWriter out, Class<?> clazz) {

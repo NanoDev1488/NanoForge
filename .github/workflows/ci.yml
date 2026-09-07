@@ -33,4 +33,98 @@ jobs:
           path: target/NanoForge.jar
           if-no-files-found: error
 
+  live-server-smoke-test:
+    # Живой прогон на настоящем Paper-сервере (не моки) - console-команды /nano
+    # через stdin, проверка файлов на диске. Специально проверяет ИМЕННО тот класс
+    # багов, которые юнит-тесты по кусочкам логики поймать не могут (см. историю
+    # реального бага reload в CHANGELOG 1.1.0 - этот job навсегда защищает от его
+    # повторного появления, а не просто дублирует юнит-тесты).
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (для запуска актуального Paper)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Скачиваем собранный плагин
+        uses: actions/download-artifact@v4
+        with:
+          name: NanoForge-jar
+          path: server/plugins
+
+      - name: Скачиваем сервер Paper (та же версия MC, что и spigot-api в pom.xml)
+        run: |
+          set -e
+          MC_VERSION=1.20.4
+          BUILD_JSON=$(curl -sSf "https://fill.papermc.io/v3/projects/paper/versions/$MC_VERSION/builds")
+          BUILD=$(echo "$BUILD_JSON" | jq -r '[.[] | select(.channel=="STABLE")] | last | .id')
+          BUILD_DETAIL=$(curl -sSf "https://fill.papermc.io/v3/projects/paper/versions/$MC_VERSION/builds/$BUILD")
+          URL=$(echo "$BUILD_DETAIL" | jq -r '.downloads."server:default".url')
+          curl -sSfL -o server/paper.jar "$URL"
+
+      - name: Настраиваем сервер (eula, офлайн-режим, без принудительной подписи чата)
+        run: |
+          cd server
+          echo "eula=true" > eula.txt
+          {
+            echo "online-mode=false"
+            echo "enforce-secure-profile=false"
+          } > server.properties
+
+      - name: Запускаем сервер и прогоняем smoke-тест через консоль
+        run: |
+          cd server
+          mkfifo cmd_pipe
+          exec 3<>cmd_pipe
+          java -Xms512M -Xmx2G -jar paper.jar --nogui < cmd_pipe > console.log 2>&1 &
+          PID=$!
+
+          READY=0
+          for i in $(seq 1 90); do
+            if grep -q "Done (" console.log 2>/dev/null; then READY=1; break; fi
+            if ! kill -0 $PID 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$READY" != "1" ]; then
+            echo "!!! сервер не поднялся"; cat console.log; exit 1
+          fi
+
+          echo "nano list" >&3; sleep 2
+          echo "nano create new SmokeTest" >&3; sleep 2
+          echo "nano enable SmokeTest" >&3; sleep 2
+          echo "nano info SmokeTest" >&3; sleep 2
+          echo "nano reload" >&3; sleep 2
+          echo "nano list" >&3; sleep 2
+          echo "stop" >&3
+
+          for i in $(seq 1 30); do
+            kill -0 $PID 2>/dev/null || break
+            sleep 2
+          done
+
+          echo "=== консольный лог сервера ==="
+          cat console.log
+
+          FAIL=0
+          grep -q "NanoForge" console.log || { echo "!!! плагин не подал признаков жизни в логе"; FAIL=1; }
+          [ -f plugins/NanoForge/addons/SmokeTest/addon.yml ] || { echo "!!! addon.yml не создан"; FAIL=1; }
+          grep -q "enabled: true" plugins/NanoForge/addons/SmokeTest/addon.yml \
+            || { echo "!!! аддон не остался включён после /nano reload (регрессия того самого бага!)"; FAIL=1; }
+
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "SMOKE TEST OK"
+
+      - name: Публикуем консольный лог как артефакт (для разбора, даже при успехе)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-smoke-test-console-log
+          path: server/console.log
+          if-no-files-found: warn
+
 # by t.me/NanoDev_mc

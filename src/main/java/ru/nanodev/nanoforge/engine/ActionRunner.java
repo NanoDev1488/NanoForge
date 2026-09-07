@@ -2,14 +2,18 @@ package ru.nanodev.nanoforge.engine;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import ru.nanodev.nanoforge.gui.MenuManager;
 import ru.nanodev.nanoforge.integration.ReflectionBridge;
 import ru.nanodev.nanoforge.integration.VaultBridge;
 import ru.nanodev.nanoforge.model.Addon;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -20,24 +24,30 @@ import java.util.Map;
  * Каждый action может содержать необязательный блок "if:" (см. ConditionChecker) -
  * если условие не выполняется, action пропускается.
  * В любом text/command/args работают плейсхолдеры {player} {world} {x} {y} {z}
- * {health} {level} {uuid} (см. PlaceholderUtil).
+ * {health} {level} {uuid} {result} и, если команда вызвана с аргументами,
+ * {args} {arg1} {arg2} ... (см. PlaceholderUtil). Если установлен PlaceholderAPI,
+ * его %плейсхолдеры% тоже подставляются - последним шагом.
  *
  * Поддерживаемые type:
  *  - message      { text, if? }
  *  - broadcast    { text, if? }
  *  - console      { command, if? }
- *  - call         { plugin, method, args, if? }        -> метод чужого плагина через рефлексию
+ *  - call         { plugin, method, args, save_as?, scope?, if? } -> метод чужого плагина через рефлексию
  *  - openmenu     { menu, addon?, if? }                 -> открыть GUI-меню
  *  - closemenu    { if? }
  *  - setvar       { key, value, scope?: player|global, if? }   -> сохранить переменную аддона
  *  - addvar       { key, amount, scope?: player|global, if? }  -> прибавить число к переменной
  *  - eco_give     { amount, if? }                       -> начислить игроку деньги (Vault)
  *  - eco_take     { amount, if? }                       -> списать деньги (Vault)
+ *  - give_item    { material, amount?, name?, lore?, if? }      -> выдать предмет игроку в инвентарь
+ *                 (material и amount тоже проходят через плейсхолдеры - можно писать
+ *                 material: "{arg1}" amount: "{arg2}" для выдачи по аргументам команды)
  */
 public class ActionRunner {
 
     @SuppressWarnings("unchecked")
-    public static void run(List<?> actions, CommandSender sender, Event event, MenuManager menuManager, Addon currentAddon) {
+    public static void run(List<?> actions, CommandSender sender, Event event, MenuManager menuManager,
+                            Addon currentAddon, String[] commandArgs) {
         if (actions == null) return;
         Player player = resolvePlayer(sender, event);
         String currentAddonName = currentAddon != null ? currentAddon.getName() : null;
@@ -56,18 +66,18 @@ public class ActionRunner {
 
                 switch (type) {
                     case "message": {
-                        String text = withResult(colorize(PlaceholderUtil.apply(String.valueOf(action.get("text")), player)), lastCallResult[0]);
+                        String text = withResult(colorize(PlaceholderUtil.apply(String.valueOf(action.get("text")), player, commandArgs)), lastCallResult[0]);
                         if (player != null) player.sendMessage(text);
                         else if (sender != null) sender.sendMessage(text);
                         break;
                     }
                     case "broadcast": {
-                        String text = withResult(colorize(PlaceholderUtil.apply(String.valueOf(action.get("text")), player)), lastCallResult[0]);
+                        String text = withResult(colorize(PlaceholderUtil.apply(String.valueOf(action.get("text")), player, commandArgs)), lastCallResult[0]);
                         Bukkit.broadcastMessage(text);
                         break;
                     }
                     case "console": {
-                        String cmd = withResult(PlaceholderUtil.apply(String.valueOf(action.get("command")), player), lastCallResult[0]);
+                        String cmd = withResult(PlaceholderUtil.apply(String.valueOf(action.get("command")), player, commandArgs), lastCallResult[0]);
                         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
                         break;
                     }
@@ -76,7 +86,7 @@ public class ActionRunner {
                         String method = String.valueOf(action.get("method"));
                         List<?> rawArgs = (List<?>) action.getOrDefault("args", java.util.Collections.emptyList());
                         String[] args = rawArgs.stream()
-                                .map(a -> PlaceholderUtil.apply(String.valueOf(a), player))
+                                .map(a -> PlaceholderUtil.apply(String.valueOf(a), player, commandArgs))
                                 .toArray(String[]::new);
                         Object result = ReflectionBridge.call(plugin, method, args);
                         // если указан save_as - результат вызова сохраняется в переменную аддона
@@ -105,7 +115,7 @@ public class ActionRunner {
                     case "setvar": {
                         if (currentAddon == null) break;
                         String key = String.valueOf(action.get("key"));
-                        String value = PlaceholderUtil.apply(String.valueOf(action.get("value")), player);
+                        String value = PlaceholderUtil.apply(String.valueOf(action.get("value")), player, commandArgs);
                         boolean global = "global".equalsIgnoreCase(String.valueOf(action.getOrDefault("scope", "player")));
                         if (global) currentAddon.getStorage().setGlobalVar(key, value);
                         else if (player != null) currentAddon.getStorage().setVar(player, key, value);
@@ -128,6 +138,38 @@ public class ActionRunner {
                         if (player != null) VaultBridge.withdraw(player, parseDouble(action.get("amount"), 0));
                         break;
                     }
+                    case "give_item": {
+                        if (player == null) break;
+                        String materialName = PlaceholderUtil.apply(
+                                String.valueOf(action.getOrDefault("material", "STONE")), player, commandArgs).toUpperCase();
+                        String amountRaw = PlaceholderUtil.apply(String.valueOf(action.getOrDefault("amount", "1")), player, commandArgs);
+                        int amount = Math.max(1, (int) parseDouble(amountRaw, 1));
+                        Material material;
+                        try {
+                            material = Material.valueOf(materialName);
+                        } catch (IllegalArgumentException e) {
+                            Bukkit.getLogger().warning("[NanoForge] give_item: неизвестный материал '" + materialName + "'");
+                            break;
+                        }
+                        ItemStack stack = new ItemStack(material, amount);
+                        ItemMeta meta = stack.getItemMeta();
+                        if (meta != null) {
+                            if (action.containsKey("name")) {
+                                String name = colorize(PlaceholderUtil.apply(String.valueOf(action.get("name")), player, commandArgs));
+                                meta.setDisplayName(name);
+                            }
+                            if (action.get("lore") instanceof List) {
+                                List<String> lore = new ArrayList<>();
+                                for (Object line : (List<?>) action.get("lore")) {
+                                    lore.add(colorize(PlaceholderUtil.apply(String.valueOf(line), player, commandArgs)));
+                                }
+                                meta.setLore(lore);
+                            }
+                            stack.setItemMeta(meta);
+                        }
+                        player.getInventory().addItem(stack);
+                        break;
+                    }
                     default:
                         Bukkit.getLogger().warning("[NanoForge] Неизвестный тип действия: " + type);
                 }
@@ -142,9 +184,13 @@ public class ActionRunner {
         }
     }
 
-    /** Старая сигнатура для обратной совместимости (без меню/переменных). */
+    public static void run(List<?> actions, CommandSender sender, Event event, MenuManager menuManager, Addon currentAddon) {
+        run(actions, sender, event, menuManager, currentAddon, null);
+    }
+
+    /** Старая сигнатура для обратной совместимости (без меню/переменных/аргументов). */
     public static void run(List<?> actions, CommandSender sender, Event event) {
-        run(actions, sender, event, null, null);
+        run(actions, sender, event, null, null, null);
     }
 
     private static String withResult(String text, Object result) {
