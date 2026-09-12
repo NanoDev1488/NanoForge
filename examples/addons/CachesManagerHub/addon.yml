@@ -1,0 +1,109 @@
+name: CachesManagerHub
+type: addon
+target: CachesManager
+enabled: true
+
+commands:
+  cmhub:
+    description: Панель управления CachesManager
+    permission: nano.admin
+    actions:
+    - type: openmenu
+      menu: main
+
+menus:
+  main:
+    title: '&8&lCachesManager &7• Хаб'
+    rows: 3
+    items:
+      '10':
+        material: HOPPER
+        name: '&e&lReload: база данных'
+        lore:
+        - '&7Вызывает CachesManager.reloadDatabaseOnly()'
+        - '&7через рефлексию (call) и печатает {result}'
+        actions:
+        - type: call
+          plugin: CachesManager
+          method: reloadDatabaseOnly
+          save_as: last_db_reload
+        - type: message
+          text: '&a✔ БД: &f{result}'
+      
+      '12':
+        material: HOPPER_MINECART
+        name: '&e&lReload: меню'
+        lore:
+        - '&7CachesManager.reloadMenusOnly()'
+        actions:
+        - type: call
+          plugin: CachesManager
+          method: reloadMenusOnly
+        - type: message
+          text: '&a✔ Меню: &f{result}'
+      
+      '14':
+        material: BLAZE_POWDER
+        name: '&e&lReload: анимации'
+        lore:
+        - '&7CachesManager.reloadAnimationsOnly()'
+        actions:
+        - type: call
+          plugin: CachesManager
+          method: reloadAnimationsOnly
+        - type: message
+          text: '&a✔ Анимации: &f{result}'
+      
+      '16':
+        material: ENDER_CHEST
+        name: '&b&lОткрыть меню кешей игроку'
+        lore:
+        - '&7Дёргает родное меню CachesManager'
+        - '&7(cachesmanager menu) от лица {player}'
+        actions:
+        - type: console
+          command: execute as {player} run cachesmanager menu
+        - type: closemenu
+      
+      '22':
+        material: BOOK
+        name: '&d&lИнформация'
+        actions:
+        - type: openmenu
+          menu: info
+      
+      '26':
+        material: NETHER_STAR
+        name: '&5&lСекретная VIP-плюшка'
+        lore:
+        - '&7Видна только с правом nano.vip'
+        if:
+          permission: nano.vip
+        actions:
+        - type: give_item
+          material: DIAMOND
+          amount: 1
+          name: '&bПодарок хаба'
+  
+  info:
+    title: '&8CachesManagerHub • Инфо'
+    rows: 1
+    items:
+      '4':
+        material: PAPER
+        name: '&7Аддон NanoForge -> CachesManager'
+        lore:
+        - '&8Все reload-кнопки идут через'
+        - '&8ReflectionBridge (type: call),'
+        - '&8а открытие кеш-меню - через console+execute as'
+        actions:
+        - type: message
+          text: '&7Это просто информационная табличка.'
+      '8':
+        material: BARRIER
+        name: '&c« Назад'
+        actions:
+        - type: openmenu
+          menu: main
+
+# by NanoDev test-harness

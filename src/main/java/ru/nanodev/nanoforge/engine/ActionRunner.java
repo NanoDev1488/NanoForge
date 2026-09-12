@@ -170,6 +170,34 @@ public class ActionRunner {
                         player.getInventory().addItem(stack);
                         break;
                     }
+                    case "play_sound": {
+                        if (player == null) break;
+                        String soundName = String.valueOf(action.getOrDefault("sound", "ENTITY_PLAYER_LEVELUP")).toUpperCase();
+                        float volume = (float) parseDouble(action.get("volume"), 1.0);
+                        float pitch = (float) parseDouble(action.get("pitch"), 1.0);
+                        try {
+                            org.bukkit.Sound sound = org.bukkit.Sound.valueOf(soundName);
+                            player.playSound(player.getLocation(), sound, volume, pitch);
+                        } catch (IllegalArgumentException e) {
+                            Bukkit.getLogger().warning("[NanoForge] play_sound: неизвестный звук '" + soundName + "'");
+                        }
+                        break;
+                    }
+                    case "teleport": {
+                        if (player == null) break;
+                        org.bukkit.World world = action.containsKey("world")
+                                ? Bukkit.getWorld(String.valueOf(action.get("world")))
+                                : player.getWorld();
+                        if (world == null) {
+                            Bukkit.getLogger().warning("[NanoForge] teleport: мир не найден");
+                            break;
+                        }
+                        double x = parseDouble(action.get("x"), player.getLocation().getX());
+                        double y = parseDouble(action.get("y"), player.getLocation().getY());
+                        double z = parseDouble(action.get("z"), player.getLocation().getZ());
+                        player.teleport(new org.bukkit.Location(world, x, y, z));
+                        break;
+                    }
                     default:
                         Bukkit.getLogger().warning("[NanoForge] Неизвестный тип действия: " + type);
                 }

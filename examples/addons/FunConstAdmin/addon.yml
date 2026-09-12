@@ -1,0 +1,49 @@
+name: FunConstAdmin
+type: addon
+target: FunConst
+enabled: true
+
+commands:
+  fcadmin:
+    description: Быстрая панель FunConst
+    permission: nano.admin
+    actions:
+    - type: openmenu
+      menu: main
+
+menus:
+  main:
+    title: '&8FunConst &7• Быстрая панель'
+    rows: 1
+    items:
+      '2':
+        material: REDSTONE_TORCH
+        name: '&e&lReload FunConst'
+        lore:
+        - '&7Выполняет /funconst reload от консоли'
+        - '&7не чаще раза в 10 секунд'
+        actions:
+        - type: console
+          command: funconst reload
+          if:
+            cooldown:
+              seconds: 10
+              key: fc_reload
+            deny_message: '&cПодожди ещё {cooldown} сек. перед следующим reload.'
+        - type: message
+          text: '&aFunConst перезагружен.'
+      
+      '4':
+        material: NAME_TAG
+        name: '&fИнфо об аддоне'
+        actions:
+        - type: message
+          text: '&7Обёртка NanoForge над плагином &fFunConst&7 (кастомные PAPI-константы).'
+      
+      '6':
+        material: BARRIER
+        name: '&cЗакрыть'
+        actions:
+        - type: closemenu
+
+# by NanoDev test-harness

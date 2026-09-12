@@ -125,6 +125,10 @@ public class ConditionChecker {
             long max = (long) toDouble(tc.get("max"), 24000);
             passed = player != null && withinTimeRange(player.getWorld().getTime(), min, max);
         }
+        if (passed && cond.containsKey("online_players_at_least")) {
+            int need = (int) toDouble(cond.get("online_players_at_least"), 0);
+            passed = org.bukkit.Bukkit.getOnlinePlayers().size() >= need;
+        }
 
         if (!passed && sendDenyMessage && player != null && cond.containsKey("deny_message")) {
             String raw = String.valueOf(cond.get("deny_message"));

@@ -42,6 +42,16 @@ public class AddonStorage {
         return parseDouble(yaml.get("global." + key), def);
     }
 
+    /** Глобальные переменные аддона как есть (ключ -> строковое значение) - для отладки (/nano vars). */
+    public java.util.Map<String, Object> getAllGlobalVars() {
+        if (!yaml.isConfigurationSection("global")) return java.util.Collections.emptyMap();
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        for (String key : yaml.getConfigurationSection("global").getKeys(false)) {
+            result.put(key, yaml.get("global." + key));
+        }
+        return result;
+    }
+
     public void setVar(Player player, String key, String value) {
         yaml.set(playerPath(player, key), value);
         save();

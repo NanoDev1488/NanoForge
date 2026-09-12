@@ -77,6 +77,8 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleExport(sender, args);
             case "import":
                 return handleImport(sender, args);
+            case "vars":
+                return handleVars(sender, args);
             default:
                 sendHelp(sender);
                 return true;
@@ -123,6 +125,28 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(ChatColor.GREEN + "✔ " + f("Аддон экспортирован:") + " " + zip.getPath());
         } catch (java.io.IOException e) {
             sender.sendMessage(ChatColor.RED + "✖ " + f("Ошибка экспорта:") + " " + e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleVars(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano vars <аддон>");
+            return true;
+        }
+        Addon addon = manager.get(args[1]);
+        if (addon == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            return true;
+        }
+        java.util.Map<String, Object> vars = addon.getStorage().getAllGlobalVars();
+        sender.sendMessage(ChatColor.GOLD + "★ " + f("Глобальные переменные") + " " + addon.getName() + " ★");
+        if (vars.isEmpty()) {
+            sender.sendMessage(ChatColor.GRAY + f("(пусто)"));
+        } else {
+            for (java.util.Map.Entry<String, Object> e : vars.entrySet()) {
+                sender.sendMessage(ChatColor.YELLOW + "• " + e.getKey() + " = " + ChatColor.GRAY + e.getValue());
+            }
         }
         return true;
     }
@@ -354,7 +378,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
-                    "duplicate", "export", "import"), args[0]);
+                    "duplicate", "export", "import", "vars"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
@@ -363,7 +387,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 2 && (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable")
                 || args[0].equalsIgnoreCase("menu") || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info")
-                || args[0].equalsIgnoreCase("duplicate") || args[0].equalsIgnoreCase("export"))) {
+                || args[0].equalsIgnoreCase("duplicate") || args[0].equalsIgnoreCase("export") || args[0].equalsIgnoreCase("vars"))) {
             return filter(manager.getAddonNames(), args[1]);
         }
 

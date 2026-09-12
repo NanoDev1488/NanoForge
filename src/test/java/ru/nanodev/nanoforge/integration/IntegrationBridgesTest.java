@@ -53,6 +53,75 @@ class IntegrationBridgesTest {
         assertThat(result).isNull();
     }
 
+    /**
+     * Ровно тот сценарий, что используется в аддоне CachesManagerHub (см. addon.yml):
+     * "call: { plugin: CachesManager, method: reloadDatabaseOnly }" - метод без
+     * аргументов, возвращающий String, найденный через getMethods() и вызванный
+     * рефлексией на реальном (не-моковском) объекте с публичным методом.
+     */
+    @Test
+    void reflectionBridgeCallsNoArgMethodReturningString() {
+        FakePluginWithReload fake = mock(FakePluginWithReload.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        when(pluginManager.getPlugin("CachesManager")).thenReturn(fake);
+
+        Object result = ReflectionBridge.call("CachesManager", "reloadDatabaseOnly", new String[0]);
+
+        assertThat(result).isEqualTo("OK (12 таблиц, 4мс)");
+    }
+
+    @Test
+    void reflectionBridgeCoercesStringArgsToDeclaredTypes() {
+        FakePluginWithReload fake = mock(FakePluginWithReload.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        when(pluginManager.getPlugin("CachesManager")).thenReturn(fake);
+
+        Object result = ReflectionBridge.call("CachesManager", "setLimit", new String[]{"42", "true"});
+
+        assertThat(result).isEqualTo("limit=42 strict=true");
+    }
+
+    @Test
+    void reflectionBridgeReturnsNullAndDoesNotThrowWhenMethodMissing() {
+        FakePluginWithReload fake = mock(FakePluginWithReload.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        when(pluginManager.getPlugin("CachesManager")).thenReturn(fake);
+
+        Object result = ReflectionBridge.call("CachesManager", "methodThatDoesNotExist", new String[0]);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void reflectionBridgeReturnsNullAndDoesNotThrowWhenMethodItselfThrows() {
+        FakePluginWithReload fake = mock(FakePluginWithReload.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        when(pluginManager.getPlugin("CachesManager")).thenReturn(fake);
+
+        Object result = ReflectionBridge.call("CachesManager", "boom", new String[0]);
+
+        assertThat(result).isNull();
+    }
+
+    /**
+     * Минимальный дублёр реального CachesManager: JavaPlugin - конкретный класс,
+     * чей public-конструктор на рантайме требует PluginClassLoader (см. исходник
+     * JavaPlugin()), поэтому создаём его через Mockito+Objenesis в обход
+     * конструктора (mock(..., CALLS_REAL_METHODS)) - ровно как NanoForgePlugin
+     * мокается в AddonManagerTest. С CALLS_REAL_METHODS тела ЭТИХ методов
+     * реально выполняются - именно их и находит ReflectionBridge через
+     * getClass().getMethods().
+     */
+    static class FakePluginWithReload extends org.bukkit.plugin.java.JavaPlugin {
+        public String reloadDatabaseOnly() {
+            return "OK (12 таблиц, 4мс)";
+        }
+
+        public String setLimit(int limit, boolean strict) {
+            return "limit=" + limit + " strict=" + strict;
+        }
+
+        public void boom() {
+            throw new IllegalStateException("база недоступна");
+        }
+    }
+
     @Test
     void plugManBridgeIsUnavailableWhenNotInstalled() {
         when(pluginManager.getPlugin("PlugMan")).thenReturn(null);
