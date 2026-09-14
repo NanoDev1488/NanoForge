@@ -197,6 +197,52 @@ class ConditionCheckerTest {
         assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
     }
 
+    // ---------- confirm ----------
+
+    @Test
+    void confirmBlocksFirstClickAndPassesOnSecondClickWithinWindow() {
+        Map<String, Object> confirmBlock = new LinkedHashMap<>();
+        confirmBlock.put("seconds", 10);
+        confirmBlock.put("key", "delete_base");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("confirm", confirmBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void confirmRequiresTwoClicksAgainAfterBeingConsumed() {
+        Map<String, Object> confirmBlock = new LinkedHashMap<>();
+        confirmBlock.put("seconds", 10);
+        confirmBlock.put("key", "delete_base_2");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("confirm", confirmBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse(); // 1-й клик
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();  // 2-й клик - подтверждено
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse(); // снова 1-й клик нового цикла
+    }
+
+    @Test
+    void confirmWithDifferentKeysAreIndependent() {
+        Map<String, Object> confirmA = new LinkedHashMap<>();
+        confirmA.put("seconds", 10);
+        confirmA.put("key", "action_a");
+        Map<String, Object> ifA = new LinkedHashMap<>();
+        ifA.put("confirm", confirmA);
+
+        Map<String, Object> confirmB = new LinkedHashMap<>();
+        confirmB.put("seconds", 10);
+        confirmB.put("key", "action_b");
+        Map<String, Object> ifB = new LinkedHashMap<>();
+        ifB.put("confirm", confirmB);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifA), player, addon)).isFalse(); // 1-й клик по A
+        assertThat(ConditionChecker.check(actionWithIf(ifB), player, addon)).isFalse(); // 1-й клик по B - не путается с A
+        assertThat(ConditionChecker.check(actionWithIf(ifA), player, addon)).isTrue();  // 2-й клик по A - подтверждено
+    }
+
     // ---------- отсутствие if вообще ----------
 
     @Test

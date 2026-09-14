@@ -42,6 +42,14 @@ import java.util.Map;
  *  - give_item    { material, amount?, name?, lore?, if? }      -> выдать предмет игроку в инвентарь
  *                 (material и amount тоже проходят через плейсхолдеры - можно писать
  *                 material: "{arg1}" amount: "{arg2}" для выдачи по аргументам команды)
+ *  - play_sound   { sound, volume?, pitch?, if? }        -> проиграть звук игроку
+ *  - teleport     { world?, x?, y?, z?, if? }            -> телепортировать игрока
+ *  - title        { title?, subtitle?, actionbar?, fadein?, stay?, fadeout?, if? }
+ *                 -> title/subtitle (тики fadein/stay/fadeout) и/или строка в actionbar;
+ *                 любое из полей можно опустить (например, только actionbar)
+ *  - delay        { ticks, actions, if? } -> выполнить вложенный список actions через
+ *                 N тиков (20 = 1 сек.); {result} внутри вложенных actions НЕ наследуется
+ *                 из actions до delay - отсчёт {result} начинается заново
  */
 public class ActionRunner {
 
@@ -196,6 +204,44 @@ public class ActionRunner {
                         double y = parseDouble(action.get("y"), player.getLocation().getY());
                         double z = parseDouble(action.get("z"), player.getLocation().getZ());
                         player.teleport(new org.bukkit.Location(world, x, y, z));
+                        break;
+                    }
+                    case "title": {
+                        if (player == null) break;
+                        if (action.containsKey("title") || action.containsKey("subtitle")) {
+                            String titleText = action.containsKey("title")
+                                    ? colorize(PlaceholderUtil.apply(String.valueOf(action.get("title")), player, commandArgs))
+                                    : "";
+                            String subtitleText = action.containsKey("subtitle")
+                                    ? colorize(PlaceholderUtil.apply(String.valueOf(action.get("subtitle")), player, commandArgs))
+                                    : "";
+                            int fadeIn = (int) parseDouble(action.get("fadein"), 10);
+                            int stay = (int) parseDouble(action.get("stay"), 70);
+                            int fadeOut = (int) parseDouble(action.get("fadeout"), 20);
+                            player.sendTitle(titleText, subtitleText, fadeIn, stay, fadeOut);
+                        }
+                        if (action.containsKey("actionbar")) {
+                            String bar = withResult(colorize(PlaceholderUtil.apply(
+                                    String.valueOf(action.get("actionbar")), player, commandArgs)), lastCallResult[0]);
+                            player.spigot().sendMessage(
+                                    net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                                    new net.md_5.bungee.api.chat.TextComponent(bar));
+                        }
+                        break;
+                    }
+                    case "delay": {
+                        Object nested = action.get("actions");
+                        if (!(nested instanceof List)) break;
+                        long ticks = (long) parseDouble(action.get("ticks"), 20);
+                        List<?> nestedActions = (List<?>) nested;
+                        CommandSender fSender = sender;
+                        Event fEvent = event;
+                        MenuManager fMenuManager = menuManager;
+                        Addon fAddon = currentAddon;
+                        String[] fArgs = commandArgs;
+                        Bukkit.getScheduler().runTaskLater(ru.nanodev.nanoforge.NanoForgePlugin.get(),
+                                () -> ActionRunner.run(nestedActions, fSender, fEvent, fMenuManager, fAddon, fArgs),
+                                ticks);
                         break;
                     }
                     default:

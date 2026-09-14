@@ -6,6 +6,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
 import ru.nanodev.nanoforge.NanoForgePlugin;
 import ru.nanodev.nanoforge.engine.FancyFont;
@@ -16,6 +17,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -79,6 +81,12 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleImport(sender, args);
             case "vars":
                 return handleVars(sender, args);
+            case "validate":
+                return handleValidate(sender, args);
+            case "get":
+                return handleGet(sender, args);
+            case "set":
+                return handleSet(sender, args);
             default:
                 sendHelp(sender);
                 return true;
@@ -349,6 +357,138 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 + f("по неизвестной причине - смотри консоль."));
     }
 
+    private boolean handleValidate(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano validate <аддон>");
+            return true;
+        }
+        Addon addon = manager.get(args[1]);
+        if (addon == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            return true;
+        }
+        List<String> issues = ru.nanodev.nanoforge.manager.AddonValidator.validate(addon);
+        sender.sendMessage(ChatColor.GOLD + "★ " + f("Проверка аддона") + " '" + addon.getName() + "' ★");
+        for (String issue : issues) {
+            if (issue.startsWith("ERROR")) {
+                sender.sendMessage(ChatColor.RED + "✖ " + issue.substring("ERROR: ".length()));
+            } else if (issue.startsWith("WARN")) {
+                sender.sendMessage(ChatColor.YELLOW + "⚠ " + issue.substring("WARN: ".length()));
+            } else {
+                sender.sendMessage(ChatColor.GREEN + "✔ " + issue.substring("OK: ".length()));
+            }
+        }
+        return true;
+    }
+
+    /** Плоский путь ключа (a.b.c) -> текущее значение из addon.yml, без загрузки в игру. */
+    private boolean handleGet(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano get <аддон> <путь>");
+            return true;
+        }
+        Addon addon = manager.get(args[1]);
+        if (addon == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            return true;
+        }
+        String path = args[2];
+        if (!addon.getYaml().contains(path)) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Такого пути нет:") + " " + path);
+            return true;
+        }
+        Object value = addon.getYaml().get(path);
+        sender.sendMessage(ChatColor.YELLOW + path + ChatColor.GRAY + " = " + ChatColor.WHITE + describeValue(value));
+        return true;
+    }
+
+    /**
+     * Меняет одно скалярное значение (строка/число/bool) по плоскому пути прямо в addon.yml,
+     * без открытия файла руками. Списки/секции (menus.*.items.*.lore, actions[...] и т.п.)
+     * этой командой намеренно не редактируются - для них /nano edit (GUI) или сам файл.
+     * Табкомплит на аргументе-значении подставляет ТЕКУЩЕЕ значение по этому пути, чтобы
+     * можно было поправить одну букву вместо перепечатывания всего значения заново.
+     */
+    private boolean handleSet(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano set <аддон> <путь> <значение>");
+            return true;
+        }
+        Addon addon = manager.get(args[1]);
+        if (addon == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            return true;
+        }
+        String path = args[2];
+        Object oldValue = addon.getYaml().get(path);
+        if (oldValue instanceof java.util.List || oldValue instanceof ConfigurationSection) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Путь ведёт на список/секцию, а не на одно значение:")
+                    + " " + path);
+            sender.sendMessage(ChatColor.GRAY + f("Списки (lore, actions и т.д.) редактируются через")
+                    + " /nano edit " + f("или напрямую в addon.yml."));
+            return true;
+        }
+
+        String rawValue = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
+        Object newValue = coerceToMatchType(rawValue, oldValue);
+        addon.getYaml().set(path, newValue);
+        try {
+            addon.getYaml().save(addon.getFile());
+        } catch (java.io.IOException e) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось сохранить addon.yml:") + " " + e.getMessage());
+            return true;
+        }
+
+        sender.sendMessage(ChatColor.GREEN + "✔ " + path + ChatColor.GRAY + ": "
+                + ChatColor.WHITE + describeValue(oldValue) + ChatColor.GRAY + " -> " + ChatColor.WHITE + describeValue(newValue));
+        if (addon.isEnabled()) {
+            sender.sendMessage(ChatColor.GRAY + "(" + f("применится после") + " /nano reload)");
+        }
+        return true;
+    }
+
+    private static String describeValue(Object value) {
+        return value == null ? ChatColor.GRAY + "<нет>" : String.valueOf(value);
+    }
+
+    /** Пытается сохранить исходный тип значения (число/bool), если по этому пути уже что-то было. */
+    private static Object coerceToMatchType(String raw, Object oldValue) {
+        if (oldValue instanceof Boolean) {
+            if ("true".equalsIgnoreCase(raw) || "false".equalsIgnoreCase(raw)) {
+                return Boolean.parseBoolean(raw);
+            }
+            return raw;
+        }
+        if (oldValue instanceof Integer) {
+            try {
+                return Integer.parseInt(raw);
+            } catch (NumberFormatException ignored) {
+                return raw;
+            }
+        }
+        if (oldValue instanceof Double || oldValue instanceof Float) {
+            try {
+                return Double.parseDouble(raw);
+            } catch (NumberFormatException ignored) {
+                return raw;
+            }
+        }
+        if (oldValue == null) {
+            // новое значение (путь раньше не существовал) - угадываем тип по содержимому
+            if ("true".equalsIgnoreCase(raw) || "false".equalsIgnoreCase(raw)) return Boolean.parseBoolean(raw);
+            try {
+                return Integer.parseInt(raw);
+            } catch (NumberFormatException ignored1) {
+                try {
+                    return Double.parseDouble(raw);
+                } catch (NumberFormatException ignored2) {
+                    return raw;
+                }
+            }
+        }
+        return raw;
+    }
+
     private boolean handleList(CommandSender sender) {
         sender.sendMessage(ChatColor.GOLD + "★ " + f("Аддоны NanoForge") + " ★");
         for (Addon a : manager.getAddons()) {
@@ -372,13 +512,17 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano duplicate <аддон> <имя> " + ChatColor.GRAY + "- " + f("клонировать аддон"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano export <аддон> " + ChatColor.GRAY + "- " + f("упаковать в .zip для переноса"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano import <файл.zip> <имя> " + ChatColor.GRAY + "- " + f("импортировать из imports/"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano vars <аддон> " + ChatColor.GRAY + "- " + f("глобальные переменные аддона (отладка)"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate <аддон> " + ChatColor.GRAY + "- " + f("проверить addon.yml без загрузки"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano get <аддон> <путь> " + ChatColor.GRAY + "- " + f("посмотреть значение по пути"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano set <аддон> <путь> <значение> " + ChatColor.GRAY + "- " + f("изменить значение (Tab подставит текущее)"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
-                    "duplicate", "export", "import", "vars"), args[0]);
+                    "duplicate", "export", "import", "vars", "validate", "get", "set"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
@@ -387,8 +531,32 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 2 && (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable")
                 || args[0].equalsIgnoreCase("menu") || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info")
-                || args[0].equalsIgnoreCase("duplicate") || args[0].equalsIgnoreCase("export") || args[0].equalsIgnoreCase("vars"))) {
+                || args[0].equalsIgnoreCase("duplicate") || args[0].equalsIgnoreCase("export") || args[0].equalsIgnoreCase("vars")
+                || args[0].equalsIgnoreCase("validate") || args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("set"))) {
             return filter(manager.getAddonNames(), args[1]);
+        }
+
+        // /nano get|set <аддон> <тут все пути ключей addon.yml, включая вложенные>
+        if (args.length == 3 && (args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("set"))) {
+            Addon addon = manager.get(args[1]);
+            if (addon == null) return new ArrayList<>();
+            List<String> allPaths = new ArrayList<>(addon.getYaml().getKeys(true));
+            java.util.Collections.sort(allPaths);
+            return filter(allPaths, args[2]);
+        }
+
+        // /nano set <аддон> <путь> <тут ОДНО значение - то, что там уже сейчас лежит>
+        if (args.length == 4 && args[0].equalsIgnoreCase("set")) {
+            Addon addon = manager.get(args[1]);
+            if (addon == null) return new ArrayList<>();
+            Object current = addon.getYaml().get(args[2]);
+            if (current == null || current instanceof java.util.List || current instanceof ConfigurationSection) {
+                return new ArrayList<>();
+            }
+            String currentAsText = String.valueOf(current);
+            // ставим текущее значение первым кандидатом табкомплита независимо от того, что уже
+            // напечатано - по нажатию Tab оно подставится целиком, и его можно доредактировать
+            return Collections.singletonList(currentAsText);
         }
 
         // /nano menu|edit <аддон> <тут список меню этого аддона>

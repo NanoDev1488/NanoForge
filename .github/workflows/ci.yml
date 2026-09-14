@@ -1,8 +1,14 @@
 name: CI
 
+# Раньше запускался на каждый push в main/master - для соло-разработки это
+# лишние минуты Actions на каждый мелкий коммит (полный mvn build + живой
+# Paper-сервер во втором job'е - не самые быстрые шаги). Теперь только:
+#   - вручную, кнопкой "Run workflow" на вкладке Actions (workflow_dispatch)
+#   - на Pull Request в main/master (чтобы чужой/сторонний PR проверялся сам)
+# Хочешь вернуть автозапуск на каждый push - просто добавь обратно блок
+# "push: branches: [ main, master ]" сюда.
 on:
-  push:
-    branches: [ main, master ]
+  workflow_dispatch:
   pull_request:
     branches: [ main, master ]
 

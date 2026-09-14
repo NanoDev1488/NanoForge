@@ -39,6 +39,16 @@ public class NanoForgePlugin extends JavaPlugin {
         getCommand("nano").setTabCompleter(nanoCommand);
 
         setupMetrics();
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            // Проверка ЗДЕСЬ, а не внутри NanoForgeExpansion.tryRegister() - это принципиально:
+            // NanoForgeExpansion extends PlaceholderExpansion, поэтому сама попытка загрузить
+            // класс NanoForgeExpansion (даже просто чтобы вызвать статический метод) заставляет
+            // JVM тут же грузить и его родителя PlaceholderExpansion. Без PlaceholderAPI на
+            // сервере это падает с NoClassDefFoundError ещё ДО того, как успеет отработать любая
+            // проверка внутри самого tryRegister() - поэтому проверка на PlaceholderAPI обязана
+            // стоять СНАРУЖИ, до первого упоминания класса NanoForgeExpansion где бы то ни было.
+            ru.nanodev.nanoforge.integration.NanoForgeExpansion.tryRegister(this);
+        }
 
         getLogger().info("NanoForge запущен. Загружено аддонов: " + addonManager.getAddons().size());
     }

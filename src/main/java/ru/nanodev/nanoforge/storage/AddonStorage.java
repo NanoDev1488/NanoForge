@@ -97,6 +97,30 @@ public class AddonStorage {
         save();
     }
 
+    // ---------- подтверждение повторным кликом (confirm) ----------
+
+    /**
+     * In-memory (НЕ на диск - переживать рестарт сервера смысла не имеет, а вот
+     * не засорять storage.yml обычными кликами - имеет). Первый клик по кнопке с
+     * "confirm" возвращает false и запоминает момент; если тот же игрок кликает
+     * ЕЩЁ РАЗ по той же confirm-кнопке в течение окна - второй вызов возвращает
+     * true и сбрасывает состояние. Если окно истекло - обнуляется и отсчёт идёт
+     * заново (просто ещё один "первый клик").
+     */
+    private static final java.util.Map<String, Long> PENDING_CONFIRMS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public boolean checkAndConsumeConfirm(Player player, String confirmKey, long windowSeconds) {
+        String path = file.getAbsolutePath() + "::" + confirmKey + "::" + player.getUniqueId();
+        long now = System.currentTimeMillis();
+        Long pendingSince = PENDING_CONFIRMS.get(path);
+        if (pendingSince != null && (now - pendingSince) <= windowSeconds * 1000L) {
+            PENDING_CONFIRMS.remove(path);
+            return true;
+        }
+        PENDING_CONFIRMS.put(path, now);
+        return false;
+    }
+
     // ---------- утиль ----------
 
     private String playerPath(Player player, String key) {

@@ -54,6 +54,7 @@ public class MenuManager implements Listener {
         final String addonName;
         final String menuKey;
         final int slot;
+        final List<Map<String, Object>> collected = new ArrayList<>();
 
         PendingActionEdit(String addonName, String menuKey, int slot) {
             this.addonName = addonName;
@@ -179,7 +180,7 @@ public class MenuManager implements Listener {
                     && event.getClickedInventory().getHolder() instanceof NanoMenuHolder;
 
             // shift+клик (левый или правый) ПО САМОМУ МЕНЮ - правка ЛОГИКИ (actions) через чат.
-            // shift+клик по своему инвентарю (снизу) должен работать как обычно - не трогаем его.
+            // shift+клик ИЗ своего инвентаря наверх обрабатывается ниже отдельной веткой.
             if (clickedIsMenu && (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT)) {
                 event.setCancelled(true);
                 startActionEdit((Player) event.getWhoClicked(), holder, event.getSlot());
@@ -189,6 +190,22 @@ public class MenuManager implements Listener {
             if (clickedIsMenu) {
                 int slot = event.getSlot();
                 Bukkit.getScheduler().runTask(plugin, () -> syncSlotToYaml(holder, slot));
+                return;
+            }
+
+            // shift+клик ИЗ своего инвентаря В меню (обычный ванильный "закинуть предмет
+            // одним кликом") - ванильная логика сама решает, в какой именно слот сверху он
+            // попадёт (возможно, сразу в несколько - если предмет стакуется на существующие
+            // стопки). Событие клика этого слота не сообщает - поэтому снимаем "снимок" верхнего
+            // инвентаря ДО обработки клика (сейчас, синхронно - клик ещё не применён) и на
+            // следующем тике сравниваем с тем, что получилось, чтобы понять, что именно изменилось.
+            boolean shiftClick = event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT;
+            boolean fromPlayerInventory = event.getClickedInventory() != null
+                    && event.getClickedInventory().equals(((Player) event.getWhoClicked()).getInventory());
+            if (shiftClick && fromPlayerInventory) {
+                Inventory topInv = holder.getInventory();
+                ItemStack[] before = topInv != null ? topInv.getContents().clone() : new ItemStack[0];
+                Bukkit.getScheduler().runTask(plugin, () -> syncShiftClickedSlots(holder, before));
             }
             return;
         }
@@ -217,6 +234,19 @@ public class MenuManager implements Listener {
         } catch (Throwable t) {
             player.sendMessage(org.bukkit.ChatColor.RED + "✖ " + f("Ошибка при выполнении кнопки меню."));
             plugin.getLogger().warning("[NanoForge] Ошибка в меню аддона '" + addon.getName() + "': " + t);
+        }
+    }
+
+    /** Сравнивает "было/стало" верхнего инвентаря после shift-клика и синхронизирует каждый изменившийся слот. */
+    private void syncShiftClickedSlots(NanoMenuHolder holder, ItemStack[] before) {
+        Inventory inv = holder.getInventory();
+        if (inv == null) return;
+        ItemStack[] after = inv.getContents();
+        int max = Math.min(before.length, after.length);
+        for (int slot = 0; slot < max; slot++) {
+            if (!java.util.Objects.equals(before[slot], after[slot])) {
+                syncSlotToYaml(holder, slot);
+            }
         }
     }
 
@@ -270,8 +300,8 @@ public class MenuManager implements Listener {
     private void startActionEdit(Player player, NanoMenuHolder holder, int slot) {
         pendingEdits.put(player.getUniqueId(), new PendingActionEdit(holder.getAddonName(), holder.getMenuKey(), slot));
         player.closeInventory();
-        player.sendMessage(ChatColor.LIGHT_PURPLE + "★ " + f("Правка действия для слота") + " " + slot + " ★");
-        player.sendMessage(ChatColor.GRAY + f("Напиши в чат ОДНУ строку в формате:"));
+        player.sendMessage(ChatColor.LIGHT_PURPLE + "★ " + f("Правка действий для слота") + " " + slot + " ★");
+        player.sendMessage(ChatColor.GRAY + f("Пиши в чат ПО ОДНОЙ строке-действию за раз - можно сколько угодно подряд:"));
         // сами ключевые слова DSL (message/call/openmenu и т.д.) НЕ прогоняются через FancyFont -
         // это литеральный синтаксис, который игрок должен набрать буквально, как есть
         player.sendMessage(ChatColor.YELLOW + "message <текст>" + ChatColor.GRAY + " | "
@@ -281,8 +311,10 @@ public class MenuManager implements Listener {
         player.sendMessage(ChatColor.YELLOW + "setvar <ключ> <значение> [global]" + ChatColor.GRAY + " | "
                 + ChatColor.YELLOW + "addvar <ключ> <число> [global]" + ChatColor.GRAY + " | "
                 + ChatColor.YELLOW + "eco_give/eco_take <число>");
-        player.sendMessage(ChatColor.GRAY + f("Это ЗАМЕНИТ весь список actions этого пункта одним новым действием."));
-        player.sendMessage(ChatColor.RED + "➤ " + f("Напиши 'cancel' чтобы отменить."));
+        player.sendMessage(ChatColor.AQUA + "➤ " + f("Каждая строка добавляется К СПИСКУ (не заменяет предыдущие)."));
+        player.sendMessage(ChatColor.AQUA + "➤ " + f("'done'") + " - " + f("сохранить и закончить") + "   "
+                + ChatColor.AQUA + "'undo'" + ChatColor.GRAY + " - " + f("убрать последнюю добавленную строку"));
+        player.sendMessage(ChatColor.RED + "➤ " + f("'cancel'") + " - " + f("отменить всё и ничего не менять."));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -296,21 +328,60 @@ public class MenuManager implements Listener {
 
         // остальную работу (доступ к Bukkit API/файлам) делаем в основном потоке -
         // AsyncPlayerChatEvent по умолчанию обрабатывается асинхронно.
-        Bukkit.getScheduler().runTask(plugin, () -> finishActionEdit(player, pending, message));
+        Bukkit.getScheduler().runTask(plugin, () -> handleActionEditLine(player, pending, message));
     }
 
-    private void finishActionEdit(Player player, PendingActionEdit pending, String message) {
-        pendingEdits.remove(player.getUniqueId());
+    /**
+     * Обрабатывает ОДНУ строку многострочной чат-DSL сессии редактирования.
+     * В отличие от старой версии (одна строка -> сразу сохранение и выход),
+     * теперь строки НАКАПЛИВАЮТСЯ в pending.collected, пока игрок не напишет
+     * 'done' (сохранить всё разом) или 'cancel' (отменить сессию целиком).
+     * 'undo' убирает последнюю добавленную строку, не завершая сессию.
+     */
+    private void handleActionEditLine(Player player, PendingActionEdit pending, String message) {
+        String trimmed = message.trim();
 
-        if (message.equalsIgnoreCase("cancel")) {
-            player.sendMessage(ChatColor.GRAY + f("Отменено."));
+        if (trimmed.equalsIgnoreCase("cancel")) {
+            pendingEdits.remove(player.getUniqueId());
+            player.sendMessage(ChatColor.GRAY + f("Отменено, ничего не изменилось."));
+            return;
+        }
+
+        if (trimmed.equalsIgnoreCase("undo")) {
+            if (pending.collected.isEmpty()) {
+                player.sendMessage(ChatColor.RED + "✖ " + f("Список пуст, нечего отменять."));
+            } else {
+                pending.collected.remove(pending.collected.size() - 1);
+                player.sendMessage(ChatColor.YELLOW + "↩ " + f("Убрана последняя строка. Сейчас в списке:") + " "
+                        + pending.collected.size());
+            }
+            return; // сессия продолжается
+        }
+
+        if (trimmed.equalsIgnoreCase("done") || trimmed.equalsIgnoreCase("save")) {
+            pendingEdits.remove(player.getUniqueId());
+            saveCollectedActions(player, pending);
             return;
         }
 
         String[] errorOut = new String[1];
-        Map<String, Object> action = ActionLineParser.parse(message, errorOut);
+        Map<String, Object> action = ActionLineParser.parse(trimmed, errorOut);
         if (action == null) {
             player.sendMessage(ChatColor.RED + "✖ " + f("Не удалось разобрать:") + " " + errorOut[0]);
+            player.sendMessage(ChatColor.GRAY + f("Строка не добавлена, сессия продолжается - попробуй ещё раз."));
+            return; // сессия продолжается, прогресс не теряется
+        }
+
+        pending.collected.add(action);
+        player.sendMessage(ChatColor.GREEN + "✔ " + f("Добавлено") + " (#" + pending.collected.size() + "): "
+                + ChatColor.GRAY + trimmed);
+        player.sendMessage(ChatColor.GRAY + f("Пиши следующую строку, либо") + " " + ChatColor.AQUA + "'done'"
+                + ChatColor.GRAY + " " + f("чтобы сохранить."));
+    }
+
+    private void saveCollectedActions(Player player, PendingActionEdit pending) {
+        if (pending.collected.isEmpty()) {
+            player.sendMessage(ChatColor.YELLOW + "⚠ " + f("Ни одной строки не добавлено - ничего не сохранено."));
             return;
         }
 
@@ -322,13 +393,13 @@ public class MenuManager implements Listener {
 
         YamlConfiguration yaml = addon.getYaml();
         String base = "menus." + pending.menuKey + ".items." + pending.slot;
-        // заменяем ВЕСЬ список actions этого пункта одним введённым действием
-        // (если нужно несколько actions подряд - проще дописать через addon.yml вручную)
-        yaml.set(base + ".actions", java.util.Collections.singletonList(action));
+        // заменяем ВЕСЬ список actions этого пункта тем, что накопилось за сессию
+        yaml.set(base + ".actions", pending.collected);
 
         try {
             yaml.save(addon.getFile());
-            player.sendMessage(ChatColor.GREEN + "✔ " + f("Действие сохранено для слота") + " " + pending.slot + ".");
+            player.sendMessage(ChatColor.GREEN + "✔ " + f("Сохранено") + " " + pending.collected.size() + " "
+                    + f("действие(й) для слота") + " " + pending.slot + ".");
         } catch (Exception e) {
             player.sendMessage(ChatColor.RED + "✖ " + f("Не удалось сохранить:") + " " + e.getMessage());
         }

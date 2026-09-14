@@ -22,6 +22,11 @@ import java.util.Map;
  *  - var_at_least: { key: "coins", value: "10" }   -> числовая переменная аддона >= значения
  *  - cooldown: { seconds: 30, key: "heal" }        -> не чаще раза в N секунд на игрока;
  *                                                      при успешном прохождении кулдаун сразу обновляется
+ *  - confirm: { seconds: 10, key: "delete" }       -> требует ДВА клика подряд (в течение
+ *                                                      seconds) от одного игрока; первый клик
+ *                                                      всегда проваливает условие и показывает
+ *                                                      deny_message ("нажми ещё раз"), второй -
+ *                                                      проходит. Удобно для необратимых кнопок.
  *  - time: { min: 13000, max: 23000 }              -> игровое время мира игрока (тики 0-24000,
  *                                                      диапазон может "переходить через полночь": min > max)
  *  - deny_message: "&cНет доступа"    -> сообщение при провале любого из условий выше (необязательно;
@@ -118,6 +123,12 @@ public class ConditionChecker {
             } else {
                 addon.getStorage().markCooldown(player, key); // кулдаун проходит - сразу отмечаем использование
             }
+        }
+        if (passed && cond.containsKey("confirm") && addon != null && player != null) {
+            Map<String, Object> cc = (Map<String, Object>) cond.get("confirm");
+            long seconds = (long) toDouble(cc.get("seconds"), 10);
+            String key = cc.containsKey("key") ? String.valueOf(cc.get("key")) : "default";
+            passed = addon.getStorage().checkAndConsumeConfirm(player, key, seconds);
         }
         if (passed && cond.containsKey("time")) {
             Map<String, Object> tc = (Map<String, Object>) cond.get("time");

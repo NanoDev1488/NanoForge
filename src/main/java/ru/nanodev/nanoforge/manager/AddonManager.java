@@ -410,6 +410,7 @@ public class AddonManager {
         addon.setEnabled(true);
         addon.save();
         plugin.getLogger().info("[NanoForge] Включён: " + addon.getName());
+        syncCommandsToClients();
         return true;
     }
 
@@ -418,7 +419,29 @@ public class AddonManager {
         addon.setEnabled(false);
         addon.save();
         plugin.getLogger().info("[NanoForge] Выключен: " + addon.getName());
+        syncCommandsToClients();
         return true;
+    }
+
+    /**
+     * Динамическая регистрация команд через reflection в SimpleCommandMap (см. выше)
+     * добавляет их в сам CommandMap, но НЕ обновляет Brigadier-дерево команд у уже
+     * подключённых игроков - без этого шага команды новых/только что включённых
+     * аддонов работают из консоли и RCON, но у реального игрока клиент отвечает
+     * "Unknown command", пока он не переподключится. CraftServer.syncCommands()
+     * (метод версии сервера, не часть публичного Bukkit API - поэтому reflection,
+     * как и resolveCommandMap() выше) как раз пересобирает и рассылает это дерево
+     * без переподключения. На платформах без этого метода (совсем старые версии,
+     * где Brigadier ещё не было) просто тихо ничего не делаем - там он не нужен.
+     */
+    private void syncCommandsToClients() {
+        try {
+            org.bukkit.Server server = Bukkit.getServer();
+            server.getClass().getMethod("syncCommands").invoke(server);
+        } catch (Exception ignored) {
+            // нет метода на этой версии сервера - не проблема, старым команднам
+            // пересинхронизация не требовалась
+        }
     }
 
     /** Снимает все текущие Bukkit-регистрации (команды + слушатель события) для этого имени аддона, если они есть. */

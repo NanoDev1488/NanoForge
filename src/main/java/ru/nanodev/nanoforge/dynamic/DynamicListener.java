@@ -70,7 +70,7 @@ public class DynamicListener implements Listener {
     }
 
     @SuppressWarnings("unchecked")
-    private Class<? extends Event> resolveEventClass(String name) {
+    public static Class<? extends Event> resolveEventClass(String name) {
         if (name.contains(".")) {
             try {
                 return (Class<? extends Event>) Class.forName(name);

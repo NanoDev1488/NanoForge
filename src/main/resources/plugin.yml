@@ -4,7 +4,7 @@ name: NanoForge
 # (см. .github/workflows/release.yml) и взять её же как тег релиза - без отдельного
 # файла версии, без ручного ввода версии при релизе и без дополнительных секретов/ключей.
 # При каждом новом релизе меняется ТОЛЬКО эта строка (и версия в pom.xml - для согласованности).
-version: 1.3.0
+version: 1.4.0
 main: ru.nanodev.nanoforge.NanoForgePlugin
 api-version: 1.16
 author: nanodev
@@ -14,7 +14,7 @@ description: Фреймворк для создания аддонов к дру
 # softdepend гарантирует, что если они установлены, то загрузятся ДО NanoForge -
 # так их сервисы (экономика/регионы) будут доступны сразу при первом использовании,
 # а не только начиная со второй проверки. Если их нет - NanoForge всё равно запускается.
-softdepend: [Vault, WorldGuard]
+softdepend: [Vault, WorldGuard, PlaceholderAPI]
 
 commands:
   nano:
