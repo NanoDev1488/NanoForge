@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -279,7 +280,7 @@ class ActionRunnerTest {
 
         bukkitMock.when(() -> Bukkit.getPluginManager()).thenReturn(mock(org.bukkit.plugin.PluginManager.class));
 
-        ActionRunner.run(List.of(call, titleAction), player, null);
+        ActionRunner.run(Arrays.asList(call, titleAction), player, null);
 
         ArgumentCaptor<net.md_5.bungee.api.chat.BaseComponent> captor =
                 ArgumentCaptor.forClass(net.md_5.bungee.api.chat.BaseComponent.class);
@@ -297,7 +298,7 @@ class ActionRunnerTest {
 
         Map<String, Object> delay = action("delay");
         delay.put("ticks", 40);
-        delay.put("actions", java.util.List.of(nestedMessage));
+        delay.put("actions", Collections.singletonList(nestedMessage));
 
         ActionRunner.run(Collections.singletonList(delay), player, null);
 

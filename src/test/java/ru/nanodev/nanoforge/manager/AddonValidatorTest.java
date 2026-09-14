@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import ru.nanodev.nanoforge.model.Addon;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,7 @@ class AddonValidatorTest {
         yaml.set("name", "Minimal");
         yaml.set("type", "addon");
         yaml.set("target", "SomePlugin");
-        yaml.set("commands.hello.actions", List.of(msgAction("hi")));
+        yaml.set("commands.hello.actions", Collections.singletonList(msgAction("hi")));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 
@@ -40,7 +41,7 @@ class AddonValidatorTest {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("name", "NoTarget");
         yaml.set("type", "addon");
-        yaml.set("commands.hello.actions", List.of(msgAction("hi")));
+        yaml.set("commands.hello.actions", Collections.singletonList(msgAction("hi")));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 
@@ -55,7 +56,7 @@ class AddonValidatorTest {
         Map<String, Object> typo = new LinkedHashMap<>();
         typo.put("type", "mesage"); // опечатка
         typo.put("text", "hi");
-        yaml.set("commands.hello.actions", List.of(typo));
+        yaml.set("commands.hello.actions", Collections.singletonList(typo));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 
@@ -70,7 +71,7 @@ class AddonValidatorTest {
         Map<String, Object> openmenu = new LinkedHashMap<>();
         openmenu.put("type", "openmenu");
         openmenu.put("menu", "does_not_exist");
-        yaml.set("commands.hello.actions", List.of(openmenu));
+        yaml.set("commands.hello.actions", Collections.singletonList(openmenu));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 
@@ -86,7 +87,7 @@ class AddonValidatorTest {
         openmenu.put("type", "openmenu");
         openmenu.put("menu", "main");
         openmenu.put("addon", "OtherAddon"); // ссылка на чужой аддон - не проверяем его меню статически
-        yaml.set("commands.hello.actions", List.of(openmenu));
+        yaml.set("commands.hello.actions", Collections.singletonList(openmenu));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 
@@ -127,7 +128,7 @@ class AddonValidatorTest {
         Map<String, Object> give = new LinkedHashMap<>();
         give.put("type", "give_item");
         give.put("material", "{arg1}");
-        yaml.set("commands.give.actions", List.of(give));
+        yaml.set("commands.give.actions", Collections.singletonList(give));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 
@@ -139,7 +140,7 @@ class AddonValidatorTest {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("name", "BadEvent");
         yaml.set("type", "new");
-        yaml.set("events.TotallyMadeUpEvent.actions", List.of(msgAction("hi")));
+        yaml.set("events.TotallyMadeUpEvent.actions", Collections.singletonList(msgAction("hi")));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 
@@ -154,7 +155,7 @@ class AddonValidatorTest {
         Map<String, Object> delay = new LinkedHashMap<>();
         delay.put("type", "delay");
         delay.put("ticks", 20);
-        yaml.set("commands.hello.actions", List.of(delay));
+        yaml.set("commands.hello.actions", Collections.singletonList(delay));
 
         List<String> issues = AddonValidator.validate(addonFrom(yaml));
 

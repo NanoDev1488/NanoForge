@@ -14,6 +14,13 @@
          НАШ СОБСТВЕННЫЙ выходной байткод остаётся на уровне Java 8 - плагин по-прежнему
          загрузится и на старых 1.16-серверах, где сама Minecraft ещё не требует Java 17. -->
     <maven.compiler.release>8</maven.compiler.release>
+    <!-- ВАЖНО: maven.compiler.release=8 выше применяется maven-compiler-plugin'ом
+         И к testCompile тоже, если явно не переопределить - а тесты используют
+         List.of(...) (Java 9+) и статические моки Mockito, которым правильнее
+         работать на современной JVM. testRelease специально распознаётся
+         maven-compiler-plugin с версии 3.6+ ИМЕННО для testCompile-выполнения,
+         оставляя release=8 только для основного (выходного) байткода плагина. -->
+    <maven.compiler.testRelease>17</maven.compiler.testRelease>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <!-- версии тестовых зависимостей вынесены сюда, чтобы поднимать одним местом -->
