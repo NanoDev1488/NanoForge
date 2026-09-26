@@ -143,12 +143,8 @@ public class MenuManager implements Listener {
     }
 
     private ItemStack buildItem(ConfigurationSection cfg) {
-        Material material;
-        try {
-            material = Material.valueOf(cfg.getString("material", "STONE").toUpperCase());
-        } catch (IllegalArgumentException e) {
-            material = Material.STONE;
-        }
+        Material material = ru.nanodev.nanoforge.util.MaterialUtil.tryParse(cfg.getString("material", "STONE"));
+        if (material == null) material = Material.STONE;
 
         ItemStack stack = new ItemStack(material, Math.max(1, cfg.getInt("amount", 1)));
         ItemMeta meta = stack.getItemMeta();
@@ -393,6 +389,7 @@ public class MenuManager implements Listener {
 
         YamlConfiguration yaml = addon.getYaml();
         String base = "menus." + pending.menuKey + ".items." + pending.slot;
+        ru.nanodev.nanoforge.manager.AddonBackup.backup(addon, plugin.getLogger());
         // заменяем ВЕСЬ список actions этого пункта тем, что накопилось за сессию
         yaml.set(base + ".actions", pending.collected);
 

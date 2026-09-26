@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -197,6 +198,39 @@ class ConditionCheckerTest {
         assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
     }
 
+    @Test
+    void globalCooldownIsSharedAcrossDifferentPlayers() {
+        Player otherPlayer = org.mockito.Mockito.mock(Player.class);
+        lenient().when(otherPlayer.getUniqueId()).thenReturn(UUID.randomUUID());
+
+        Map<String, Object> cooldownBlock = new LinkedHashMap<>();
+        cooldownBlock.put("seconds", 30);
+        cooldownBlock.put("key", "server_event");
+        cooldownBlock.put("scope", "global");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("cooldown", cooldownBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+        // ДРУГОЙ игрок - но кулдаун global, поэтому тоже должен быть заблокирован
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), otherPlayer, addon)).isFalse();
+    }
+
+    @Test
+    void perPlayerCooldownDoesNotAffectOtherPlayers() {
+        Player otherPlayer = org.mockito.Mockito.mock(Player.class);
+        lenient().when(otherPlayer.getUniqueId()).thenReturn(UUID.randomUUID());
+
+        Map<String, Object> cooldownBlock = new LinkedHashMap<>();
+        cooldownBlock.put("seconds", 30);
+        cooldownBlock.put("key", "heal2");
+        // scope не указан - по умолчанию "player"
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("cooldown", cooldownBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), otherPlayer, addon)).isTrue();
+    }
+
     // ---------- confirm ----------
 
     @Test
@@ -241,6 +275,22 @@ class ConditionCheckerTest {
         assertThat(ConditionChecker.check(actionWithIf(ifA), player, addon)).isFalse(); // 1-й клик по A
         assertThat(ConditionChecker.check(actionWithIf(ifB), player, addon)).isFalse(); // 1-й клик по B - не путается с A
         assertThat(ConditionChecker.check(actionWithIf(ifA), player, addon)).isTrue();  // 2-й клик по A - подтверждено
+    }
+
+    @Test
+    void globalConfirmCanBeConsumedByADifferentPlayer() {
+        Player otherPlayer = org.mockito.Mockito.mock(Player.class);
+        lenient().when(otherPlayer.getUniqueId()).thenReturn(UUID.randomUUID());
+
+        Map<String, Object> confirmBlock = new LinkedHashMap<>();
+        confirmBlock.put("seconds", 10);
+        confirmBlock.put("key", "wipe_server");
+        confirmBlock.put("scope", "global");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("confirm", confirmBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();       // 1-й клик, игрок A
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), otherPlayer, addon)).isTrue();   // 2-й клик, игрок B - подтверждает
     }
 
     // ---------- отсутствие if вообще ----------
@@ -305,6 +355,167 @@ class ConditionCheckerTest {
         timeBlock.put("max", 2000);
         Map<String, Object> ifBlock = new LinkedHashMap<>();
         ifBlock.put("time", timeBlock);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+    }
+
+    // ---------- any_of / all_of / not ----------
+
+    @Test
+    void anyOfPassesWhenAtLeastOneNestedConditionPasses() {
+        when(player.hasPermission("a")).thenReturn(false);
+        when(player.hasPermission("b")).thenReturn(true);
+
+        Map<String, Object> condA = new LinkedHashMap<>();
+        condA.put("permission", "a");
+        Map<String, Object> condB = new LinkedHashMap<>();
+        condB.put("permission", "b");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("any_of", java.util.Arrays.asList(condA, condB));
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void anyOfFailsWhenNoneOfTheNestedConditionsPass() {
+        when(player.hasPermission("a")).thenReturn(false);
+        when(player.hasPermission("b")).thenReturn(false);
+
+        Map<String, Object> condA = new LinkedHashMap<>();
+        condA.put("permission", "a");
+        Map<String, Object> condB = new LinkedHashMap<>();
+        condB.put("permission", "b");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("any_of", java.util.Arrays.asList(condA, condB));
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+    }
+
+    @Test
+    void allOfFailsWhenAnySingleNestedConditionFails() {
+        when(player.hasPermission("a")).thenReturn(true);
+        when(player.hasPermission("b")).thenReturn(false);
+
+        Map<String, Object> condA = new LinkedHashMap<>();
+        condA.put("permission", "a");
+        Map<String, Object> condB = new LinkedHashMap<>();
+        condB.put("permission", "b");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("all_of", java.util.Arrays.asList(condA, condB));
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+    }
+
+    @Test
+    void allOfPassesWhenEveryNestedConditionPasses() {
+        when(player.hasPermission("a")).thenReturn(true);
+        when(player.hasPermission("b")).thenReturn(true);
+
+        Map<String, Object> condA = new LinkedHashMap<>();
+        condA.put("permission", "a");
+        Map<String, Object> condB = new LinkedHashMap<>();
+        condB.put("permission", "b");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("all_of", java.util.Arrays.asList(condA, condB));
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void notInvertsNestedCondition() {
+        when(player.hasPermission("banned")).thenReturn(true);
+
+        Map<String, Object> inner = new LinkedHashMap<>();
+        inner.put("permission", "banned");
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("not", inner);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+
+        when(player.hasPermission("banned")).thenReturn(false);
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void notCanWrapAnOrGroupForXorLikeLogic() {
+        // not(any_of[a,b]) - проходит только если НИ a, НИ b нет
+        when(player.hasPermission("a")).thenReturn(false);
+        when(player.hasPermission("b")).thenReturn(false);
+
+        Map<String, Object> condA = new LinkedHashMap<>();
+        condA.put("permission", "a");
+        Map<String, Object> condB = new LinkedHashMap<>();
+        condB.put("permission", "b");
+        Map<String, Object> anyOf = new LinkedHashMap<>();
+        anyOf.put("any_of", java.util.Arrays.asList(condA, condB));
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("not", anyOf);
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    // ---------- biome_equals / weather_equals ----------
+
+    @Test
+    void biomeEqualsMatchesBlockBiomeAtPlayerLocation() {
+        org.bukkit.block.Block block = mock(org.bukkit.block.Block.class);
+        org.bukkit.Location loc = mock(org.bukkit.Location.class);
+        when(loc.getBlock()).thenReturn(block);
+        when(block.getBiome()).thenReturn(org.bukkit.block.Biome.PLAINS);
+        when(player.getLocation()).thenReturn(loc);
+
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("biome_equals", "plains");
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void biomeEqualsFailsForDifferentBiome() {
+        org.bukkit.block.Block block = mock(org.bukkit.block.Block.class);
+        org.bukkit.Location loc = mock(org.bukkit.Location.class);
+        when(loc.getBlock()).thenReturn(block);
+        when(block.getBiome()).thenReturn(org.bukkit.block.Biome.DESERT);
+        when(player.getLocation()).thenReturn(loc);
+
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("biome_equals", "plains");
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+    }
+
+    @Test
+    void weatherEqualsClearRequiresNoRainAndNoThunder() {
+        lenient().when(player.getWorld()).thenReturn(world);
+        when(world.hasStorm()).thenReturn(false);
+        when(world.isThundering()).thenReturn(false);
+
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("weather_equals", "clear");
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void weatherEqualsThunderMatchesThunderstorm() {
+        lenient().when(player.getWorld()).thenReturn(world);
+        when(world.hasStorm()).thenReturn(true);
+        when(world.isThundering()).thenReturn(true);
+
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("weather_equals", "thunder");
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+    }
+
+    @Test
+    void weatherEqualsRainDoesNotMatchThunderstorm() {
+        lenient().when(player.getWorld()).thenReturn(world);
+        when(world.hasStorm()).thenReturn(true);
+        when(world.isThundering()).thenReturn(true);
+
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("weather_equals", "rain");
 
         assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
     }

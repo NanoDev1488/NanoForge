@@ -64,6 +64,80 @@ public class StartupChecks {
         }
     }
 
+    /** Одна опциональная интеграция: как называется плагин, минимальная рекомендуемая версия, где скачать. */
+    private static final class OptionalDependency {
+        final String pluginName;
+        final String minVersion;
+        final String downloadUrl;
+
+        OptionalDependency(String pluginName, String minVersion, String downloadUrl) {
+            this.pluginName = pluginName;
+            this.minVersion = minVersion;
+            this.downloadUrl = downloadUrl;
+        }
+    }
+
+    private static final OptionalDependency[] OPTIONAL_DEPENDENCIES = {
+            new OptionalDependency("Vault", "1.7", "https://www.spigotmc.org/resources/vault.34315/"),
+            new OptionalDependency("WorldGuard", "7.0.0", "https://dev.bukkit.org/projects/worldguard"),
+            new OptionalDependency("PlaceholderAPI", "2.11.0", "https://www.spigotmc.org/resources/placeholderapi.6245/"),
+            new OptionalDependency("LuckPerms", "5.0", "https://luckperms.net/download"),
+            new OptionalDependency("Citizens", "2.0.30", "https://www.spigotmc.org/resources/citizens.13811/"),
+    };
+
+    /**
+     * Проверяет опциональные интеграции (Vault/WorldGuard/PlaceholderAPI/LuckPerms/Citizens) -
+     * ОДНА понятная строка на каждую, вместо того чтобы просто молчать, если их нет, или
+     * (что было раньше) печатать это по одному предупреждению разными классами при первом
+     * реальном использовании ИЗ РАЗНЫХ мест кода. Не установлен - это НЕ ошибка (все они
+     * опциональны, отсюда info, а не warning), но при устаревшей версии - warning с
+     * рекомендацией обновиться и прямой ссылкой куда идти. Ничего из этого не блокирует
+     * запуск NanoForge - сам плагин работает в любом случае, эти интеграции лишь опциональны.
+     *
+     * ВАЖНО: это касается ТОЛЬКО зависимостей самого NanoForge. Если КАКОЙ-ТО ДРУГОЙ плагин
+     * на сервере падает при загрузке из-за СВОИХ отсутствующих зависимостей (например,
+     * стороннему плагину для чата не хватает LuckPerms) - это ошибка ТОГО плагина, не
+     * NanoForge, и NanoForge физически не может ни перехватить её, ни красиво её оформить -
+     * она печатается сервером до/независимо от того, что делает NanoForge.
+     */
+    public static void checkOptionalDependencies(Plugin plugin) {
+        Logger log = plugin.getLogger();
+        log.info("[NanoForge] Проверка опциональных интеграций (все необязательны):");
+        for (OptionalDependency dep : OPTIONAL_DEPENDENCIES) {
+            Plugin found = Bukkit.getPluginManager().getPlugin(dep.pluginName);
+            if (found == null) {
+                log.info("[NanoForge]   - " + dep.pluginName + ": не установлен. Минимальная рекомендуемая версия "
+                        + dep.minVersion + ". Скачать: " + dep.downloadUrl);
+                continue;
+            }
+            String version = found.getDescription().getVersion();
+            if (isVersionBelow(version, dep.minVersion)) {
+                log.warning("[NanoForge]   ⚠ " + dep.pluginName + " " + version + " найден, но это СТАРЕЕ "
+                        + "рекомендуемой версии " + dep.minVersion + " - возможны проблемы совместимости. "
+                        + "Обновить: " + dep.downloadUrl);
+            } else {
+                log.info("[NanoForge]   ✔ " + dep.pluginName + " " + version + " найден.");
+            }
+        }
+    }
+
+    /**
+     * true, если actual строго меньше minRequired. Версии сравниваются по major.minor.patch
+     * тем же лояльным парсером, что и версия сервера (см. parse/safeInt выше) - у сторонних
+     * плагинов версии бывают вида "5.4.102" или "7.0.9-SNAPSHOT", цифры после первых трёх
+     * компонентов игнорируются. Если строку разобрать вообще не удалось - считаем, что
+     * сравнивать нечего, и молчим (false), а не пугаем ложным предупреждением.
+     */
+    static boolean isVersionBelow(String actual, String minRequired) {
+        try {
+            int[] a = parse(actual.split("-")[0]);
+            int[] min = parse(minRequired.split("-")[0]);
+            return compare(a, min) < 0;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /** Баннер при старте - имя плагина, версия, контакт автора. */
     public static void printBanner(Plugin plugin) {
         Logger log = plugin.getLogger();

@@ -32,9 +32,15 @@ public class AddonManager {
     // ---------- загрузка ----------
 
     public void loadAll() {
-        // теперь каждый аддон - это ПАПКА addons/<имя>/ с файлом addon.yml внутри
+        // теперь каждый аддон - это ПАПКА addons/<имя>/ с файлом addon.yml внутри.
+        // Загрузка в ДВА прохода: сначала ВСЕ addon.yml читаются в память (без enable),
+        // и только потом включаются те, у кого enabled: true. Без этого "requires:"
+        // ловил бы ложные срабатывания на порядке чтения файловой системы (аддон Б,
+        // требующий аддон А, мог загрузиться раньше А только из-за алфавита папок).
         File[] dirs = addonsFolder.listFiles(File::isDirectory);
         if (dirs == null) return;
+
+        List<Addon> loaded = new ArrayList<>();
         for (File dir : dirs) {
             try {
                 File yamlFile = new File(dir, "addon.yml");
@@ -42,19 +48,24 @@ public class AddonManager {
                 YamlConfiguration yaml = YamlConfiguration.loadConfiguration(yamlFile);
                 Addon addon = new Addon(yamlFile, yaml);
                 addons.put(addon.getName().toLowerCase(), addon);
-                if (addon.isEnabled()) {
-                    // На старте сервера НЕ блокируем включение из-за отсутствия целевого плагина -
-                    // порядок загрузки плагинов не гарантирован, и он может появиться чуть позже.
-                    // Строгая проверка (с отказом) применяется только к ручному /nano enable,
-                    // когда сервер уже полностью поднят и все плагины точно загружены.
-                    warnIfTargetMissing(addon);
-                    enableInternal(addon);
-                }
+                loaded.add(addon);
             } catch (Throwable t) {
                 // один битый/кривой addon.yml не должен ронять загрузку остальных аддонов
                 // (и уж тем более старт всего сервера) - просто пропускаем и пишем в консоль.
                 plugin.getLogger().warning("[NanoForge] Не удалось загрузить аддон из папки '"
                         + dir.getName() + "': " + t + " (проверь синтаксис addon.yml)");
+            }
+        }
+
+        for (Addon addon : loaded) {
+            if (addon.isEnabled()) {
+                // На старте сервера НЕ блокируем включение из-за отсутствия целевого плагина -
+                // порядок загрузки ПЛАГИНОВ (не аддонов, это другое) не гарантирован, и целевой
+                // плагин может появиться чуть позже. Строгая проверка (с отказом) применяется
+                // только к ручному /nano enable, когда сервер уже полностью поднят.
+                warnIfTargetMissing(addon);
+                warnIfRequiredMissing(addon);
+                enableInternal(addon);
             }
         }
     }
@@ -374,7 +385,42 @@ public class AddonManager {
             }
         }
 
+        // Зависимости МЕЖДУ аддонами (requires: [Другой Аддон]) - здесь, при ручном
+        // /nano enable, проверяем строго: к этому моменту всё уже точно загружено,
+        // так что "просто ещё не успел" отговорка не работает. При автозагрузке на
+        // старте сервера (loadAll) эта же проверка мягкая - см. warnIfRequiredMissing.
+        List<String> missing = missingRequiredAddons(addon);
+        if (!missing.isEmpty()) {
+            plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName() + "' НЕ включён: требует включённых "
+                    + "аддонов " + missing + " (см. 'requires:' в addon.yml).");
+            addon.setEnabled(false);
+            addon.save();
+            return false;
+        }
+
         return enableInternal(addon);
+    }
+
+    /** Имена аддонов из "requires:", которых сейчас нет либо они выключены. */
+    private List<String> missingRequiredAddons(Addon addon) {
+        List<String> missing = new ArrayList<>();
+        for (String requiredName : addon.getRequiredAddons()) {
+            Addon required = addons.get(requiredName.toLowerCase());
+            if (required == null || !required.isEnabled()) {
+                missing.add(requiredName);
+            }
+        }
+        return missing;
+    }
+
+    /** Мягкий вариант той же проверки - только предупреждение, без отказа (для loadAll на старте). */
+    private void warnIfRequiredMissing(Addon addon) {
+        List<String> missing = missingRequiredAddons(addon);
+        if (!missing.isEmpty()) {
+            plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName() + "' требует аддонов " + missing
+                    + " ('requires:' в addon.yml) - они пока не включены. Если после полной загрузки сервера "
+                    + "это не исправится само - проверь порядок и включи их, потом сделай /nano reload.");
+        }
     }
 
     public boolean disable(String name) {

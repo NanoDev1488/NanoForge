@@ -87,6 +87,10 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleGet(sender, args);
             case "set":
                 return handleSet(sender, args);
+            case "diff":
+                return handleDiff(sender, args);
+            case "debug":
+                return handleDebug(sender, args);
             default:
                 sendHelp(sender);
                 return true;
@@ -359,14 +363,46 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleValidate(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano validate <аддон>");
-            return true;
+            return handleAuditAll(sender);
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
             sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
             return true;
         }
+        printValidationReport(sender, addon);
+        return true;
+    }
+
+    /** /nano validate без аргумента - проверить СРАЗУ все аддоны одной командой. */
+    private boolean handleAuditAll(CommandSender sender) {
+        java.util.Collection<Addon> addons = manager.getAddons();
+        if (addons.isEmpty()) {
+            sender.sendMessage(ChatColor.YELLOW + "⚠ " + f("Аддонов пока нет."));
+            return true;
+        }
+        int totalErrors = 0;
+        int totalWarnings = 0;
+        for (Addon addon : addons) {
+            List<String> issues = ru.nanodev.nanoforge.manager.AddonValidator.validate(addon);
+            long errors = issues.stream().filter(i -> i.startsWith("ERROR")).count();
+            long warnings = issues.stream().filter(i -> i.startsWith("WARN")).count();
+            totalErrors += errors;
+            totalWarnings += warnings;
+            String status = errors > 0 ? ChatColor.RED + "✖ " + errors + " ошибок"
+                    : warnings > 0 ? ChatColor.YELLOW + "⚠ " + warnings + " предупреждений"
+                    : ChatColor.GREEN + "✔ ок";
+            sender.sendMessage(ChatColor.YELLOW + "• " + addon.getName() + ChatColor.GRAY + " - " + status);
+        }
+        sender.sendMessage(ChatColor.GOLD + "★ " + f("Итого:") + " " + addons.size() + " " + f("аддонов, ")
+                + totalErrors + " " + f("ошибок, ") + totalWarnings + " " + f("предупреждений."));
+        if (totalErrors > 0 || totalWarnings > 0) {
+            sender.sendMessage(ChatColor.GRAY + f("Подробности:") + " /nano validate <аддон>");
+        }
+        return true;
+    }
+
+    private void printValidationReport(CommandSender sender, Addon addon) {
         List<String> issues = ru.nanodev.nanoforge.manager.AddonValidator.validate(addon);
         sender.sendMessage(ChatColor.GOLD + "★ " + f("Проверка аддона") + " '" + addon.getName() + "' ★");
         for (String issue : issues) {
@@ -378,7 +414,6 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(ChatColor.GREEN + "✔ " + issue.substring("OK: ".length()));
             }
         }
-        return true;
     }
 
     /** Плоский путь ключа (a.b.c) -> текущее значение из addon.yml, без загрузки в игру. */
@@ -431,6 +466,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
 
         String rawValue = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
         Object newValue = coerceToMatchType(rawValue, oldValue);
+        ru.nanodev.nanoforge.manager.AddonBackup.backup(addon, plugin.getLogger());
         addon.getYaml().set(path, newValue);
         try {
             addon.getYaml().save(addon.getFile());
@@ -489,6 +525,94 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         return raw;
     }
 
+    /**
+     * Сравнивает то, что СЕЙЧАС в памяти (то, чем аддон реально пользуется прямо
+     * сейчас), с тем, что лежит на диске в addon.yml - то есть именно то, что
+     * применится при следующем /nano reload. Полезно, когда addon.yml правили
+     * руками (через SFTP/текстовый редактор) и хочется увидеть diff ПЕРЕД
+     * перезагрузкой, а не после - если после перезагрузки окажется, что кто-то
+     * забыл закрывающую кавычку, диагностировать это уже сложнее.
+     */
+    private boolean handleDiff(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano diff <аддон>");
+            return true;
+        }
+        Addon addon = manager.get(args[1]);
+        if (addon == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            return true;
+        }
+        if (!addon.getFile().exists()) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Файл на диске не найден:") + " " + addon.getFile().getPath());
+            return true;
+        }
+
+        org.bukkit.configuration.file.YamlConfiguration onDisk =
+                org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(addon.getFile());
+        org.bukkit.configuration.file.YamlConfiguration inMemory = addon.getYaml();
+
+        java.util.Set<String> allKeys = new java.util.TreeSet<>();
+        allKeys.addAll(inMemory.getKeys(true));
+        allKeys.addAll(onDisk.getKeys(true));
+
+        List<String> added = new ArrayList<>();
+        List<String> removed = new ArrayList<>();
+        List<String> changed = new ArrayList<>();
+        for (String key : allKeys) {
+            boolean inMem = inMemory.contains(key) && !inMemory.isConfigurationSection(key);
+            boolean onDiskHas = onDisk.contains(key) && !onDisk.isConfigurationSection(key);
+            if (inMem && !onDiskHas) {
+                removed.add(key);
+            } else if (!inMem && onDiskHas) {
+                added.add(key);
+            } else if (inMem && onDiskHas) {
+                Object memVal = inMemory.get(key);
+                Object diskVal = onDisk.get(key);
+                if (!java.util.Objects.equals(memVal, diskVal)) {
+                    changed.add(key + ": " + memVal + " -> " + diskVal);
+                }
+            }
+        }
+
+        if (added.isEmpty() && removed.isEmpty() && changed.isEmpty()) {
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Файл на диске совпадает с тем, что сейчас в памяти - разницы нет."));
+            return true;
+        }
+
+        sender.sendMessage(ChatColor.GOLD + "★ " + f("Что изменится при /nano reload для") + " '" + addon.getName() + "' ★");
+        for (String key : added) {
+            sender.sendMessage(ChatColor.GREEN + "+ " + key + ChatColor.GRAY + " = " + onDisk.get(key));
+        }
+        for (String key : changed) {
+            sender.sendMessage(ChatColor.YELLOW + "~ " + key);
+        }
+        for (String key : removed) {
+            sender.sendMessage(ChatColor.RED + "- " + key + ChatColor.GRAY + " (" + f("было") + " " + inMemory.get(key) + ")");
+        }
+        return true;
+    }
+
+    private boolean handleDebug(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano debug <аддон>");
+            return true;
+        }
+        Addon addon = manager.get(args[1]);
+        if (addon == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            return true;
+        }
+        boolean nowEnabled = ru.nanodev.nanoforge.util.ActionDebugger.toggle(addon.getName());
+        if (nowEnabled) {
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Verbose-отладка ВКЛЮЧЕНА для") + " '" + addon.getName()
+                    + "' " + f("- каждый action пишется в консоль сервера."));
+        } else {
+            sender.sendMessage(ChatColor.YELLOW + "⚠ " + f("Verbose-отладка выключена для") + " '" + addon.getName() + "'.");
+        }
+        return true;
+    }
+
     private boolean handleList(CommandSender sender) {
         sender.sendMessage(ChatColor.GOLD + "★ " + f("Аддоны NanoForge") + " ★");
         for (Addon a : manager.getAddons()) {
@@ -516,13 +640,16 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate <аддон> " + ChatColor.GRAY + "- " + f("проверить addon.yml без загрузки"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano get <аддон> <путь> " + ChatColor.GRAY + "- " + f("посмотреть значение по пути"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano set <аддон> <путь> <значение> " + ChatColor.GRAY + "- " + f("изменить значение (Tab подставит текущее)"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate " + ChatColor.GRAY + "- " + f("проверить СРАЗУ все аддоны (без имени - полный аудит)"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano diff <аддон> " + ChatColor.GRAY + "- " + f("что изменится на диске при следующем /nano reload"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano debug <аддон> " + ChatColor.GRAY + "- " + f("вкл/выкл verbose-лог каждого action в консоль"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
-                    "duplicate", "export", "import", "vars", "validate", "get", "set"), args[0]);
+                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
@@ -532,7 +659,8 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2 && (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable")
                 || args[0].equalsIgnoreCase("menu") || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info")
                 || args[0].equalsIgnoreCase("duplicate") || args[0].equalsIgnoreCase("export") || args[0].equalsIgnoreCase("vars")
-                || args[0].equalsIgnoreCase("validate") || args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("set"))) {
+                || args[0].equalsIgnoreCase("validate") || args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("set")
+                || args[0].equalsIgnoreCase("diff") || args[0].equalsIgnoreCase("debug"))) {
             return filter(manager.getAddonNames(), args[1]);
         }
 

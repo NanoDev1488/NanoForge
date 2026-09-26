@@ -1,6 +1,5 @@
 package ru.nanodev.nanoforge.manager;
 
-import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import ru.nanodev.nanoforge.dynamic.DynamicListener;
 import ru.nanodev.nanoforge.model.Addon;
@@ -26,7 +25,7 @@ public final class AddonValidator {
     private static final Set<String> KNOWN_ACTION_TYPES = new HashSet<>(java.util.Arrays.asList(
             "message", "broadcast", "console", "call", "openmenu", "closemenu",
             "setvar", "addvar", "eco_give", "eco_take", "give_item",
-            "play_sound", "teleport", "title", "delay"
+            "play_sound", "particle", "sound_stop", "teleport", "title", "delay", "random", "discord_webhook"
     ));
 
     private AddonValidator() {
@@ -85,6 +84,22 @@ public final class AddonValidator {
             }
         }
 
+        ConfigurationSection npcsSection = addon.getYaml().getConfigurationSection("npcs");
+        if (npcsSection != null) {
+            for (String npcKey : npcsSection.getKeys(false)) {
+                String path = "npcs." + npcKey;
+                ConfigurationSection npc = npcsSection.getConfigurationSection(npcKey);
+                if (npc == null || !npc.contains("npc_id")) {
+                    issues.add("ERROR: " + path + " - требует поле 'npc_id' (числовой ID NPC в Citizens)");
+                } else if (!(npc.get("npc_id") instanceof Number)) {
+                    issues.add("WARN: " + path + ".npc_id - лучше задавать числом");
+                }
+                if (npc != null) {
+                    checkActions(npc.getList("actions"), menuKeys, issues, path);
+                }
+            }
+        }
+
         if (issues.isEmpty()) {
             issues.add("OK: проблем не найдено (" + menuKeys.size() + " меню, "
                     + addon.getCommandKeys().size() + " команд, " + addon.getEventKeys().size() + " событий)");
@@ -135,9 +150,7 @@ public final class AddonValidator {
 
     private static void checkMaterial(String material, String path, List<String> issues) {
         if (material == null || material.contains("{")) return; // плейсхолдер - не проверяем статически
-        try {
-            Material.valueOf(material.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        if (ru.nanodev.nanoforge.util.MaterialUtil.tryParse(material) == null) {
             issues.add("ERROR: " + path + " - неизвестный материал '" + material + "'");
         }
     }

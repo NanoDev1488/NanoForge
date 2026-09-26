@@ -24,6 +24,7 @@ public class NanoForgePlugin extends JavaPlugin {
 
         StartupChecks.printBanner(this);
         StartupChecks.checkServerVersion(this);
+        StartupChecks.checkOptionalDependencies(this);
 
         File addonsFolder = new File(getDataFolder(), "addons");
         if (!addonsFolder.exists()) {
@@ -33,6 +34,9 @@ public class NanoForgePlugin extends JavaPlugin {
         this.addonManager = new AddonManager(this, addonsFolder);
         this.menuManager = new MenuManager(this, addonManager);
         this.addonManager.loadAll();
+
+        getServer().getPluginManager().registerEvents(
+                new ru.nanodev.nanoforge.dynamic.NpcTriggerListener(addonManager), this);
 
         NanoCommand nanoCommand = new NanoCommand(this, addonManager, menuManager);
         getCommand("nano").setExecutor(nanoCommand);

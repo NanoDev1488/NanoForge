@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -44,6 +45,7 @@ class ActionRunnerTest {
 
     @BeforeEach
     void setUp() {
+        ru.nanodev.nanoforge.util.ConsoleRateLimiter.resetForTests();
         player = mock(Player.class);
         inventory = mock(PlayerInventory.class);
         lenient().when(player.getInventory()).thenReturn(inventory);
@@ -148,6 +150,52 @@ class ActionRunnerTest {
         ActionRunner.run(Collections.singletonList(a), player, null, null, null, new String[]{"x", "y", "z"});
 
         verify(player).sendMessage("все аргументы: x y z");
+    }
+
+    @Test
+    void particleSpawnsNamedParticleAtPlayerLocation() {
+        org.bukkit.World world = mock(org.bukkit.World.class);
+        org.bukkit.Location loc = new org.bukkit.Location(world, 1, 2, 3);
+        when(player.getLocation()).thenReturn(loc);
+
+        Map<String, Object> a = action("particle");
+        a.put("particle", "heart");
+        a.put("count", 5);
+        a.put("offset_x", 0.1);
+        a.put("offset_y", 0.2);
+        a.put("offset_z", 0.3);
+        a.put("extra", 0.0);
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        verify(player).spawnParticle(org.bukkit.Particle.HEART, loc, 5, 0.1, 0.2, 0.3, 0.0);
+    }
+
+    @Test
+    void particleWithUnknownNameLogsWarningAndDoesNotThrow() {
+        when(player.getLocation()).thenReturn(new org.bukkit.Location(null, 0, 0, 0));
+
+        Map<String, Object> a = action("particle");
+        a.put("particle", "NOT_A_REAL_PARTICLE");
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        verify(player, never()).spawnParticle(any(org.bukkit.Particle.class), any(org.bukkit.Location.class),
+                anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble());
+    }
+
+    @Test
+    void particleUsesDefaultsWhenFieldsOmitted() {
+        org.bukkit.World world = mock(org.bukkit.World.class);
+        org.bukkit.Location loc = new org.bukkit.Location(world, 0, 0, 0);
+        when(player.getLocation()).thenReturn(loc);
+
+        Map<String, Object> a = action("particle");
+        // без "particle" вообще - должен по умолчанию взять FLAME
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        verify(player).spawnParticle(org.bukkit.Particle.FLAME, loc, 10, 0.5, 0.5, 0.5, 0.0);
     }
 
     @Test
@@ -326,6 +374,146 @@ class ActionRunnerTest {
         ActionRunner.run(Collections.singletonList(delay), player, null);
 
         verify(scheduler, never()).runTaskLater(any(), any(Runnable.class), anyLong());
+    }
+
+    @Test
+    void consoleActionDispatchesSingleCommand() {
+        org.bukkit.command.ConsoleCommandSender console = mock(org.bukkit.command.ConsoleCommandSender.class);
+        bukkitMock.when(Bukkit::getConsoleSender).thenReturn(console);
+
+        Map<String, Object> a = action("console");
+        a.put("command", "say hi");
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        bukkitMock.verify(() -> Bukkit.dispatchCommand(console, "say hi"));
+    }
+
+    @Test
+    void consoleActionWithCommandsListDispatchesAllInOrder() {
+        org.bukkit.command.ConsoleCommandSender console = mock(org.bukkit.command.ConsoleCommandSender.class);
+        bukkitMock.when(Bukkit::getConsoleSender).thenReturn(console);
+
+        Map<String, Object> a = action("console");
+        a.put("commands", Arrays.asList("say first", "say second"));
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        bukkitMock.verify(() -> Bukkit.dispatchCommand(console, "say first"));
+        bukkitMock.verify(() -> Bukkit.dispatchCommand(console, "say second"));
+    }
+
+    @Test
+    void consoleActionStopsDispatchingOnceRateLimitExceeded() {
+        org.bukkit.command.ConsoleCommandSender console = mock(org.bukkit.command.ConsoleCommandSender.class);
+        bukkitMock.when(Bukkit::getConsoleSender).thenReturn(console);
+
+        List<String> manyCommands = new java.util.ArrayList<>();
+        for (int i = 0; i < ru.nanodev.nanoforge.util.ConsoleRateLimiter.MAX_PER_SECOND + 10; i++) {
+            manyCommands.add("say " + i);
+        }
+        Map<String, Object> a = action("console");
+        a.put("commands", manyCommands);
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        bukkitMock.verify(() -> Bukkit.dispatchCommand(eq(console), anyString()),
+                times(ru.nanodev.nanoforge.util.ConsoleRateLimiter.MAX_PER_SECOND));
+    }
+
+    @Test
+    void randomActionAlwaysRunsExactlyOneOfTheGivenActions() {
+        Map<String, Object> a = action("message");
+        a.put("text", "A");
+        Map<String, Object> b = action("message");
+        b.put("text", "B");
+
+        Map<String, Object> random = action("random");
+        random.put("actions", Arrays.asList(a, b));
+
+        ActionRunner.run(Collections.singletonList(random), player, null);
+
+        verify(player, times(1)).sendMessage(anyString());
+    }
+
+    @Test
+    void randomActionWithZeroWeightNeverPicksThatChoice() {
+        Map<String, Object> never = action("message");
+        never.put("text", "NEVER");
+        never.put("weight", 0);
+        Map<String, Object> always = action("message");
+        always.put("text", "ALWAYS");
+        always.put("weight", 1);
+
+        Map<String, Object> random = action("random");
+        random.put("actions", Arrays.asList(never, always));
+
+        for (int i = 0; i < 20; i++) {
+            ActionRunner.run(Collections.singletonList(random), player, null);
+        }
+
+        verify(player, never()).sendMessage("NEVER");
+        verify(player, times(20)).sendMessage("ALWAYS");
+    }
+
+    @Test
+    void soundStopWithNamedSoundStopsOnlyThatSound() {
+        Map<String, Object> a = action("sound_stop");
+        a.put("sound", "entity_player_levelup");
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        verify(player).stopSound(org.bukkit.Sound.ENTITY_PLAYER_LEVELUP);
+    }
+
+    @Test
+    void soundStopWithoutSoundFieldStopsAllSounds() {
+        Map<String, Object> a = action("sound_stop");
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        verify(player).stopAllSounds();
+    }
+
+    @Test
+    void soundStopWithUnknownNameLogsWarningAndDoesNotThrow() {
+        Map<String, Object> a = action("sound_stop");
+        a.put("sound", "NOT_A_REAL_SOUND");
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        verify(player, never()).stopSound(any(org.bukkit.Sound.class));
+        verify(player, never()).stopAllSounds();
+    }
+
+    @Test
+    void discordWebhookSchedulesAsyncTaskWhenUrlProvided() {
+        BukkitScheduler scheduler = mock(BukkitScheduler.class);
+        bukkitMock.when(Bukkit::getScheduler).thenReturn(scheduler);
+
+        Map<String, Object> a = action("discord_webhook");
+        a.put("url", "https://discord.com/api/webhooks/fake/fake");
+        a.put("content", "привет из теста");
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        // саму задачу НЕ выполняем (это был бы реальный сетевой запрос) - только
+        // проверяем, что она вообще запланирована асинхронно, а не выполнена
+        // синхронно в потоке вызова (что заблокировало бы сервер при недоступной сети).
+        verify(scheduler).runTaskAsynchronously(any(), any(Runnable.class));
+    }
+
+    @Test
+    void discordWebhookDoesNothingWhenUrlMissing() {
+        BukkitScheduler scheduler = mock(BukkitScheduler.class);
+        bukkitMock.when(Bukkit::getScheduler).thenReturn(scheduler);
+
+        Map<String, Object> a = action("discord_webhook");
+        a.put("content", "без урла");
+
+        ActionRunner.run(Collections.singletonList(a), player, null);
+
+        verify(scheduler, never()).runTaskAsynchronously(any(), any(Runnable.class));
     }
 
 }

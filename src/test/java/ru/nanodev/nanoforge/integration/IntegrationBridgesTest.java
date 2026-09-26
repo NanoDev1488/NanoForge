@@ -34,6 +34,8 @@ class IntegrationBridgesTest {
         VaultBridge.resetForTests();
         WorldGuardBridge.resetForTests();
         PlaceholderAPIBridge.resetForTests();
+        LuckPermsBridge.resetForTests();
+        CitizensBridge.resetForTests();
 
         pluginManager = mock(PluginManager.class);
         bukkitMock = mockStatic(Bukkit.class);
@@ -152,6 +154,24 @@ class IntegrationBridgesTest {
     void worldGuardBridgeReturnsFalseWhenNotInstalled() {
         when(pluginManager.getPlugin("WorldGuard")).thenReturn(null);
         assertThat(WorldGuardBridge.isInRegion(null, "spawn")).isFalse();
+    }
+
+    @Test
+    void luckPermsBridgeReturnsFalseWhenNotInstalled() {
+        when(pluginManager.getPlugin("LuckPerms")).thenReturn(null);
+        assertThat(LuckPermsBridge.isInGroup(null, "vip")).isFalse();
+    }
+
+    @Test
+    void citizensBridgeReturnsNullWhenNotInstalled() {
+        when(pluginManager.getPlugin("Citizens")).thenReturn(null);
+        org.bukkit.entity.Entity entity = mock(org.bukkit.entity.Entity.class);
+        assertThat(CitizensBridge.getNpcId(entity)).isNull();
+    }
+
+    @Test
+    void citizensBridgeReturnsNullForNullEntity() {
+        assertThat(CitizensBridge.getNpcId(null)).isNull();
     }
 
     @Test

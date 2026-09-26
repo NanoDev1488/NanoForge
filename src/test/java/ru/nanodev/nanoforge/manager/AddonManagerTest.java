@@ -80,6 +80,55 @@ class AddonManagerTest {
     }
 
     @Test
+    void enableFailsWhenRequiredAddonIsMissing() {
+        manager.createNew("Dependent");
+        manager.get("Dependent").getYaml().set("requires", java.util.Collections.singletonList("Ghost"));
+
+        boolean result = manager.enable("Dependent");
+
+        assertThat(result).isFalse();
+        assertThat(manager.get("Dependent").isEnabled()).isFalse();
+    }
+
+    @Test
+    void enableFailsWhenRequiredAddonExistsButIsDisabled() {
+        manager.createNew("Base");
+        manager.createNew("Dependent");
+        manager.get("Dependent").getYaml().set("requires", java.util.Collections.singletonList("Base"));
+        // Base НЕ включаем специально
+
+        boolean result = manager.enable("Dependent");
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void enableSucceedsWhenRequiredAddonIsEnabled() {
+        manager.createNew("Base");
+        manager.createNew("Dependent");
+        manager.get("Dependent").getYaml().set("requires", java.util.Collections.singletonList("Base"));
+
+        assertThat(manager.enable("Base")).isTrue();
+        assertThat(manager.enable("Dependent")).isTrue();
+    }
+
+    @Test
+    void loadAllEnablesBothRegardlessOfFolderIterationOrder() {
+        // "AAA" требует "ZZZ" - по алфавиту файловая система отдала бы AAA раньше ZZZ,
+        // что до фикса на два прохода могло дать ложное "требуемый аддон не найден"
+        manager.createNew("ZZZ");
+        manager.createNew("AAA");
+        manager.get("AAA").getYaml().set("requires", java.util.Collections.singletonList("ZZZ"));
+        assertThat(manager.enable("ZZZ")).isTrue();
+        assertThat(manager.enable("AAA")).isTrue();
+
+        manager.reloadAll();
+
+        assertThat(manager.get("ZZZ").isEnabled()).isTrue();
+        assertThat(manager.get("AAA").isEnabled()).isTrue();
+    }
+
+    @Test
     void explicitDisableStillPersistsDisabledState() {
         // это НЕ должно сломаться встречным фиксом - обычный /nano disable по-прежнему
         // обязан гасить и сохранять enabled=false, это разные сценарии

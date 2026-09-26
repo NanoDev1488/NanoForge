@@ -68,6 +68,10 @@ public class Addon {
         }
     }
 
+    public List<String> getRequiredAddons() {
+        return yaml.getStringList("requires");
+    }
+
     public List<String> getCommandKeys() {
         if (!yaml.isConfigurationSection("commands")) return java.util.Collections.emptyList();
         return new java.util.ArrayList<>(yaml.getConfigurationSection("commands").getKeys(false));

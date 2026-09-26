@@ -97,6 +97,20 @@ public class AddonStorage {
         save();
     }
 
+    /** Глобальный (один на весь сервер, не per-player) кулдаун - см. {@link #remainingCooldownSeconds}. */
+    public long remainingGlobalCooldownSeconds(String cooldownKey, long cooldownSeconds) {
+        long last = yaml.getLong("cooldowns." + cooldownKey + ".__global__", 0);
+        long elapsedMs = System.currentTimeMillis() - last;
+        long remainingMs = (cooldownSeconds * 1000L) - elapsedMs;
+        if (remainingMs <= 0) return 0;
+        return (remainingMs + 999) / 1000L;
+    }
+
+    public void markGlobalCooldown(String cooldownKey) {
+        yaml.set("cooldowns." + cooldownKey + ".__global__", System.currentTimeMillis());
+        save();
+    }
+
     // ---------- подтверждение повторным кликом (confirm) ----------
 
     /**
@@ -110,7 +124,15 @@ public class AddonStorage {
     private static final java.util.Map<String, Long> PENDING_CONFIRMS = new java.util.concurrent.ConcurrentHashMap<>();
 
     public boolean checkAndConsumeConfirm(Player player, String confirmKey, long windowSeconds) {
-        String path = file.getAbsolutePath() + "::" + confirmKey + "::" + player.getUniqueId();
+        return checkAndConsumeConfirmByPath(file.getAbsolutePath() + "::" + confirmKey + "::" + player.getUniqueId(), windowSeconds);
+    }
+
+    /** Глобальный (один на весь сервер, любой игрок может "подтвердить" за другого) confirm. */
+    public boolean checkAndConsumeGlobalConfirm(String confirmKey, long windowSeconds) {
+        return checkAndConsumeConfirmByPath(file.getAbsolutePath() + "::" + confirmKey + "::__global__", windowSeconds);
+    }
+
+    private boolean checkAndConsumeConfirmByPath(String path, long windowSeconds) {
         long now = System.currentTimeMillis();
         Long pendingSince = PENDING_CONFIRMS.get(path);
         if (pendingSince != null && (now - pendingSince) <= windowSeconds * 1000L) {
