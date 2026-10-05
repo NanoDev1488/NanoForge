@@ -25,7 +25,8 @@ public final class AddonValidator {
     private static final Set<String> KNOWN_ACTION_TYPES = new HashSet<>(java.util.Arrays.asList(
             "message", "broadcast", "console", "call", "openmenu", "closemenu",
             "setvar", "addvar", "eco_give", "eco_take", "give_item",
-            "play_sound", "particle", "sound_stop", "teleport", "title", "delay", "random", "discord_webhook"
+            "play_sound", "particle", "sound_stop", "teleport", "title", "delay", "random", "discord_webhook",
+            "page_next", "page_prev"
     ));
 
     private AddonValidator() {

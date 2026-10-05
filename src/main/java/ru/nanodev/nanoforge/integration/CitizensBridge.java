@@ -1,6 +1,5 @@
 package ru.nanodev.nanoforge.integration;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 
 import java.util.logging.Logger;
@@ -16,33 +15,18 @@ import java.util.logging.Logger;
 public class CitizensBridge {
 
     private static final Logger LOG = Logger.getLogger("NanoForge");
-    private static Boolean available = null;
-    private static boolean warnedMissing = false;
-
-    private static boolean pluginPresent() {
-        if (available == null) {
-            try {
-                available = Bukkit.getPluginManager().getPlugin("Citizens") != null;
-            } catch (Throwable t) {
-                available = false;
-            }
-            if (!available && !warnedMissing) {
-                warnedMissing = true;
-                LOG.info("[NanoForge] Citizens не найден - секции 'npcs:' в addon.yml работать не будут.");
-            }
-        }
-        return available;
-    }
+    private static final ru.nanodev.nanoforge.util.PluginPresenceCache PRESENCE =
+            new ru.nanodev.nanoforge.util.PluginPresenceCache("Citizens",
+                    "[NanoForge] Citizens не найден - секции 'npcs:' в addon.yml работать не будут.", LOG);
 
     /** Только для тестов. */
     static void resetForTests() {
-        available = null;
-        warnedMissing = false;
+        PRESENCE.resetForTests();
     }
 
     /** null, если entity не является NPC Citizens (или Citizens не установлен). */
     public static Integer getNpcId(Entity entity) {
-        if (entity == null || !pluginPresent()) return null;
+        if (entity == null || !PRESENCE.isPresent()) return null;
         try {
             Class<?> citizensApi = Class.forName("net.citizensnpcs.api.CitizensAPI");
             Object registry = citizensApi.getMethod("getNPCRegistry").invoke(null);

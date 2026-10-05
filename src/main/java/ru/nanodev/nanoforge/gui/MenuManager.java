@@ -96,6 +96,21 @@ public class MenuManager implements Listener {
         return open(player, addonName, menuKey, true);
     }
 
+    /** Текущая страница на игрока+аддон+меню - переживает переоткрытие через page_next/page_prev. */
+    private final Map<String, Integer> pageTracker = new HashMap<>();
+
+    private String pageKey(Player player, String addonName, String menuKey) {
+        return player.getUniqueId() + "::" + addonName + "::" + menuKey;
+    }
+
+    /** delta=+1/-1. Переоткрывает то же меню на новой странице (без выхода из edit-режима, если он был). */
+    public void changePage(Player player, String addonName, String menuKey, int delta, boolean editMode) {
+        String key = pageKey(player, addonName, menuKey);
+        int current = pageTracker.getOrDefault(key, 0);
+        pageTracker.put(key, Math.max(0, current + delta));
+        open(player, addonName, menuKey, editMode);
+    }
+
     private boolean open(Player player, String addonName, String menuKey, boolean editMode) {
         Addon addon = addonManager.get(addonName);
         if (addon == null) {
@@ -107,14 +122,44 @@ public class MenuManager implements Listener {
             return false;
         }
 
-        String title = ChatColor.translateAlternateColorCodes('&', addon.getMenuTitle(menuKey));
-        if (editMode) title = ChatColor.LIGHT_PURPLE + "[Edit] " + ChatColor.RESET + title;
         int rows = addon.getMenuRows(menuKey);
+        int size = rows * 9;
+        ConfigurationSection listCfg = addon.getYaml().getConfigurationSection("menus." + menuKey + ".list");
+
+        // если у меню есть "list:" - страница/maxpage нужны ЕЩЁ ДО создания инвентаря (заголовок
+        // может содержать {page}/{maxpage}), поэтому список значений резолвим один раз здесь
+        List<String> listValues = listCfg != null ? resolveListSource(listCfg.getString("source", "")) : java.util.Collections.emptyList();
+        int slotsFrom = listCfg != null ? listCfg.getInt("slots_from", 0) : 0;
+        int slotsTo = listCfg != null ? Math.min(listCfg.getInt("slots_to", size - 1), size - 1) : -1;
+        int pageSize = Math.max(1, slotsTo - slotsFrom + 1);
+        int maxPage = listValues.isEmpty() ? 0 : (listValues.size() - 1) / pageSize;
+        int page = Math.min(maxPage, pageTracker.getOrDefault(pageKey(player, addonName, menuKey), 0));
+
+        String title = ChatColor.translateAlternateColorCodes('&', addon.getMenuTitle(menuKey));
+        title = title.replace("{page}", String.valueOf(page + 1)).replace("{maxpage}", String.valueOf(maxPage + 1));
+        if (editMode) title = ChatColor.LIGHT_PURPLE + "[Edit] " + ChatColor.RESET + title;
 
         NanoMenuHolder holder = new NanoMenuHolder(addon.getName(), menuKey);
         holder.setEditMode(editMode);
-        Inventory inv = Bukkit.createInventory(holder, rows * 9, title);
+        holder.setCurrentPage(page);
+        Inventory inv = Bukkit.createInventory(holder, size, title);
         holder.setInventory(inv);
+
+        if (listCfg != null && !listValues.isEmpty()) {
+            ConfigurationSection itemTemplate = listCfg.getConfigurationSection("item");
+            if (itemTemplate != null) {
+                int startIndex = page * pageSize;
+                for (int i = 0; i < pageSize; i++) {
+                    int idx = startIndex + i;
+                    if (idx >= listValues.size()) break;
+                    int slot = slotsFrom + i;
+                    if (slot > slotsTo || slot >= size) break;
+                    String value = listValues.get(idx);
+                    inv.setItem(slot, buildGeneratedItem(itemTemplate, value));
+                    holder.putGeneratedValue(slot, value);
+                }
+            }
+        }
 
         ConfigurationSection items = addon.getMenuItemsSection(menuKey);
         if (items != null) {
@@ -142,28 +187,43 @@ public class MenuManager implements Listener {
         return true;
     }
 
-    private ItemStack buildItem(ConfigurationSection cfg) {
-        Material material = ru.nanodev.nanoforge.util.MaterialUtil.tryParse(cfg.getString("material", "STONE"));
-        if (material == null) material = Material.STONE;
+    /**
+     * Источники для menus.*.list.source - сейчас только "online_players" (имена игроков
+     * онлайн прямо сейчас). Список специально сделан коротким и расширяемым - неизвестный
+     * source просто даёт пустой список (меню без сгенерированных пунктов), а не ошибку.
+     */
+    private List<String> resolveListSource(String source) {
+        if ("online_players".equalsIgnoreCase(source)) {
+            List<String> names = new ArrayList<>();
+            for (Player p : Bukkit.getOnlinePlayers()) names.add(p.getName());
+            return names;
+        }
+        return java.util.Collections.emptyList();
+    }
 
-        ItemStack stack = new ItemStack(material, Math.max(1, cfg.getInt("amount", 1)));
+    /** Как buildItem(), но подставляет {value} (например, имя игрока) в имя/лор итогового предмета. */
+    private ItemStack buildGeneratedItem(ConfigurationSection template, String value) {
+        ItemStack stack = buildItem(template);
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            String name = cfg.getString("name", null);
-            if (name != null) {
-                meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', name));
+            if (meta.hasDisplayName()) {
+                meta.setDisplayName(meta.getDisplayName().replace("{value}", value));
             }
-            List<String> lore = cfg.getStringList("lore");
-            if (!lore.isEmpty()) {
-                List<String> colored = new ArrayList<>();
-                for (String line : lore) {
-                    colored.add(ChatColor.translateAlternateColorCodes('&', line));
-                }
-                meta.setLore(colored);
+            if (meta.hasLore()) {
+                List<String> lore = new ArrayList<>(meta.getLore());
+                lore.replaceAll(line -> line.replace("{value}", value));
+                meta.setLore(lore);
             }
             stack.setItemMeta(meta);
         }
         return stack;
+    }
+
+    private ItemStack buildItem(ConfigurationSection cfg) {
+        Material material = ru.nanodev.nanoforge.util.MaterialUtil.tryParse(cfg.getString("material", "STONE"));
+        if (material == null) material = Material.STONE;
+        return ru.nanodev.nanoforge.util.ItemBuilder.build(
+                material, Math.max(1, cfg.getInt("amount", 1)), cfg.getString("name", null), cfg.getStringList("lore"));
     }
 
     @EventHandler
@@ -215,18 +275,37 @@ public class MenuManager implements Listener {
         Addon addon = addonManager.get(holder.getAddonName());
         if (addon == null || !addon.isEnabled()) return;
 
+        Player player = (Player) event.getWhoClicked();
+
+        // сгенерированный пункт (menus.*.list) - actions берутся из шаблона list.item,
+        // а не из menus.*.items, и {value} в actions подставляется как аргумент клика
+        String generatedValue = holder.getGeneratedValue(event.getSlot());
+        if (generatedValue != null) {
+            ConfigurationSection listCfg = addon.getYaml().getConfigurationSection("menus." + holder.getMenuKey() + ".list");
+            ConfigurationSection itemTemplate = listCfg != null ? listCfg.getConfigurationSection("item") : null;
+            List<?> generatedActions = itemTemplate != null
+                    ? itemTemplate.getList("actions", java.util.Collections.emptyList())
+                    : java.util.Collections.emptyList();
+            try {
+                ActionRunner.run(generatedActions, player, event, this, addon, new String[]{generatedValue});
+            } catch (Throwable t) {
+                player.sendMessage(org.bukkit.ChatColor.RED + "✖ " + f("Ошибка при выполнении кнопки меню."));
+                plugin.getLogger().warning("[NanoForge] Ошибка в сгенерированном пункте меню аддона '" + addon.getName() + "': " + t);
+            }
+            return;
+        }
+
         ConfigurationSection items = addon.getMenuItemsSection(holder.getMenuKey());
         if (items == null) return;
 
         ConfigurationSection item = items.getConfigurationSection(String.valueOf(event.getSlot()));
         if (item == null) return;
 
-        Player player = (Player) event.getWhoClicked();
         if (!ConditionChecker.checkVisibility(item, player)) return; // скрытый пункт - клик по пустому слоту
 
         List<?> actions = item.getList("actions", java.util.Collections.emptyList());
         try {
-            ActionRunner.run(actions, player, null, this, addon);
+            ActionRunner.run(actions, player, event, this, addon);
         } catch (Throwable t) {
             player.sendMessage(org.bukkit.ChatColor.RED + "✖ " + f("Ошибка при выполнении кнопки меню."));
             plugin.getLogger().warning("[NanoForge] Ошибка в меню аддона '" + addon.getName() + "': " + t);

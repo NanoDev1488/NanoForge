@@ -1,6 +1,5 @@
 package ru.nanodev.nanoforge.integration;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.logging.Logger;
@@ -15,34 +14,19 @@ import java.util.logging.Logger;
 public class LuckPermsBridge {
 
     private static final Logger LOG = Logger.getLogger("NanoForge");
-    private static Boolean available = null;
-    private static boolean warnedMissing = false;
-
-    private static boolean pluginPresent() {
-        if (available == null) {
-            try {
-                available = Bukkit.getPluginManager().getPlugin("LuckPerms") != null;
-            } catch (Throwable t) {
-                available = false;
-            }
-            if (!available && !warnedMissing) {
-                warnedMissing = true;
-                LOG.warning("[NanoForge] LuckPerms не найден - условие if: luckperms_group работать не будет "
-                        + "(проверка группы всегда будет считаться непройденной).");
-            }
-        }
-        return available;
-    }
+    private static final ru.nanodev.nanoforge.util.PluginPresenceCache PRESENCE =
+            new ru.nanodev.nanoforge.util.PluginPresenceCache("LuckPerms",
+                    "[NanoForge] LuckPerms не найден - условие if: luckperms_group работать не будет "
+                            + "(проверка группы всегда будет считаться непройденной).", LOG);
 
     /** Только для тестов - сбрасывает закешированное состояние проверки LuckPerms. */
     static void resetForTests() {
-        available = null;
-        warnedMissing = false;
+        PRESENCE.resetForTests();
     }
 
     /** @return true если у игрока прямо сейчас есть указанная группа LuckPerms (регистронезависимо). */
     public static boolean isInGroup(Player player, String groupName) {
-        if (!pluginPresent()) return false;
+        if (!PRESENCE.isPresent()) return false;
         try {
             Class<?> providerClass = Class.forName("net.luckperms.api.LuckPermsProvider");
             Object luckPerms = providerClass.getMethod("get").invoke(null);

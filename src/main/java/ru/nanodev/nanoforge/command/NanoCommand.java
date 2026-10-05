@@ -32,11 +32,14 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
     private final NanoForgePlugin plugin;
     private final AddonManager manager;
     private final MenuManager menuManager;
+    private final ru.nanodev.nanoforge.wizard.AddonWizard addonWizard;
 
-    public NanoCommand(NanoForgePlugin plugin, AddonManager manager, MenuManager menuManager) {
+    public NanoCommand(NanoForgePlugin plugin, AddonManager manager, MenuManager menuManager,
+                        ru.nanodev.nanoforge.wizard.AddonWizard addonWizard) {
         this.plugin = plugin;
         this.manager = manager;
         this.menuManager = menuManager;
+        this.addonWizard = addonWizard;
     }
 
     /** Короткая обёртка над FancyFont.stylize - только для читаемости вызовов ниже. */
@@ -91,6 +94,13 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleDiff(sender, args);
             case "debug":
                 return handleDebug(sender, args);
+            case "wizard":
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage(ChatColor.RED + "✖ " + f("Визард можно запустить только игроку."));
+                    return true;
+                }
+                addonWizard.start((Player) sender);
+                return true;
             default:
                 sendHelp(sender);
                 return true;
@@ -643,13 +653,14 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate " + ChatColor.GRAY + "- " + f("проверить СРАЗУ все аддоны (без имени - полный аудит)"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano diff <аддон> " + ChatColor.GRAY + "- " + f("что изменится на диске при следующем /nano reload"));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano debug <аддон> " + ChatColor.GRAY + "- " + f("вкл/выкл verbose-лог каждого action в консоль"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano wizard " + ChatColor.GRAY + "- " + f("GUI-мастер создания аддона (тип -> плагин -> имя в чат)"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
-                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug"), args[0]);
+                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug", "wizard"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {

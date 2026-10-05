@@ -46,6 +46,8 @@ import java.util.Map;
  *  - call         { plugin, method, args, save_as?, scope?, if? } -> метод чужого плагина через рефлексию
  *  - openmenu     { menu, addon?, if? }                 -> открыть GUI-меню
  *  - closemenu    { if? }
+ *  - page_next / page_prev {}       -> листать menus.*.list на страницу вперёд/назад;
+ *                 работает только по клику ВНУТРИ меню (нужен InventoryClickEvent)
  *  - setvar       { key, value, scope?: player|global, if? }   -> сохранить переменную аддона
  *  - addvar       { key, amount, scope?: player|global, if? }  -> прибавить число к переменной
  *  - eco_give     { amount, if? }                       -> начислить игроку деньги (Vault)
@@ -214,6 +216,18 @@ public class ActionRunner {
                     }
                     case "closemenu": {
                         if (player != null) player.closeInventory();
+                        break;
+                    }
+                    case "page_next":
+                    case "page_prev": {
+                        if (menuManager == null || player == null) break;
+                        Object holderObj = (event instanceof org.bukkit.event.inventory.InventoryClickEvent)
+                                ? ((org.bukkit.event.inventory.InventoryClickEvent) event).getInventory().getHolder()
+                                : null;
+                        if (!(holderObj instanceof ru.nanodev.nanoforge.gui.NanoMenuHolder)) break;
+                        ru.nanodev.nanoforge.gui.NanoMenuHolder holder = (ru.nanodev.nanoforge.gui.NanoMenuHolder) holderObj;
+                        int delta = "page_next".equals(type) ? 1 : -1;
+                        menuManager.changePage(player, holder.getAddonName(), holder.getMenuKey(), delta, holder.isEditMode());
                         break;
                     }
                     case "setvar": {

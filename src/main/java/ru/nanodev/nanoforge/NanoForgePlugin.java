@@ -38,7 +38,10 @@ public class NanoForgePlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(
                 new ru.nanodev.nanoforge.dynamic.NpcTriggerListener(addonManager), this);
 
-        NanoCommand nanoCommand = new NanoCommand(this, addonManager, menuManager);
+        ru.nanodev.nanoforge.wizard.AddonWizard addonWizard = new ru.nanodev.nanoforge.wizard.AddonWizard(this, addonManager);
+        getServer().getPluginManager().registerEvents(addonWizard, this);
+
+        NanoCommand nanoCommand = new NanoCommand(this, addonManager, menuManager, addonWizard);
         getCommand("nano").setExecutor(nanoCommand);
         getCommand("nano").setTabCompleter(nanoCommand);
 
