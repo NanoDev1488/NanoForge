@@ -1,6 +1,39 @@
-# NanoForge
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=0:0f2027,100:2c5364&height=180&section=header&text=ɴᴀɴᴏꜰᴏʀɢᴇ&fontSize=60&fontColor=ffffff&animation=fadeIn"/>
 
-> 📖 **[Открыть полную документацию с поиском и примерами](docs/README.md)**  
+<p align="center">
+  <a href="https://git.io/typing-svg">
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=24&pause=1000&color=00FF9C&center=true&vCenter=true&width=650&lines=Minecraft+Server+Addon+Framework;Create+Addons+%26+Plugins+Without+Java;In-Game+GUI+Drag+%26+Drop+Editor;Reflection+Calls+%26+Dynamic+Events;1.16+%E2%86%92+1.21.x+Full+Support" alt="typing animation" />
+  </a>
+</p>
+
+<p align="center">✧･ﾟ: *✧･ﾟ:* 　　*:･ﾟ✧*:･ﾟ✧</p>
+
+<p align="center">
+  ➳ 📖 <b>Онлайн-документация:</b> <a href="https://nanodev1488.github.io/NanoForge/">nanodev1488.github.io/NanoForge</a><br/>
+  ➳ 📡 Телеграм-канал автора: <a href="https://t.me/nanodev_MC">t.me/nanodev_MC</a><br/>
+  ➳ ⚡ Без компиляции, без перезагрузки сервера, прямо в YAML и через игру!<br/>
+  ➳ 🛡️ Не мод Forge! Серверный плагин Spigot / Paper / Purpur.
+</p>
+
+<p align="center">
+  <a href="https://nanodev1488.github.io/NanoForge/"><img src="https://img.shields.io/badge/Docs-GitHub%20Pages-00FF9C?style=for-the-badge&logo=gitbook&logoColor=black" alt="Documentation"/></a>
+  <img src="https://img.shields.io/badge/Minecraft-1.16--1.21.x-2c5364?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft"/>
+  <img src="https://img.shields.io/badge/Platform-Paper%20%7C%20Spigot%20%7C%20Purpur-2c5364?style=for-the-badge" alt="Platform"/>
+  <img src="https://img.shields.io/badge/Java-8%20--%2021%2B-2c5364?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java"/>
+  <img src="https://img.shields.io/badge/License-MIT-2c5364?style=for-the-badge" alt="License"/>
+  <a href="https://t.me/nanodev_MC"><img src="https://img.shields.io/badge/Telegram-@NanoDev__mc-2c5364?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram"/></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Actions-19%20Types-2c5364?style=for-the-badge" alt="Actions"/>
+  <img src="https://img.shields.io/badge/Editor-Drag%20%26%20Drop-2c5364?style=for-the-badge" alt="Editor"/>
+  <img src="https://img.shields.io/badge/Integrations-Vault%20%7C%20WG%20%7C%20Citizens%20%7C%20LP-2c5364?style=for-the-badge" alt="Integrations"/>
+  <img src="https://img.shields.io/badge/Status-Stable%20v1.5.0-00FF9C?style=for-the-badge&logoColor=black" alt="Status"/>
+</p>
+
+<p align="center">▄︻デ══━一 ▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄ 一━══デ︻▄</p>
+
+> 📖 **[Открыть полную документацию с живым поиском и примерами](https://nanodev1488.github.io/NanoForge/)**  
 > ⚠️ **Важно:** NanoForge — это **НЕ** загрузчик модов Forge, а серверный плагин для Spigot / Paper / Purpur 1.16 – 1.21.x! Игрокам на клиенты ничего устанавливать не нужно.
 
 Фреймворк-плагин для Bukkit/Spigot/Paper **1.16 – 1.21.x**, который позволяет
@@ -527,4 +560,14 @@ mvn clean verify  # тесты + сборка
 (`\uXXXX`), без ручного перепечатывания экзотических глифов — риск
 опечататься в символе слишком велик, чтобы делать это на глаз.
 
-<!-- by t.me/NanoDev_mc -->
+<p align="center">▄︻デ══━一 ▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄ 一━══デ︻▄</p>
+
+<p align="center">˜”*°•.•°*”˜ ✦ ˜”*°•.•°*”˜</p>
+
+<p align="center">
+  <b>Разработано с ❤️ от <a href="https://t.me/NanoDev_mc">NanoDev</a></b><br/>
+  Канал автора: <a href="https://t.me/NanoDev_mc">t.me/NanoDev_mc</a> • Документация: <a href="https://nanodev1488.github.io/NanoForge/">nanodev1488.github.io/NanoForge</a>
+</p>
+
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=100&section=footer"/>
+
