@@ -25,17 +25,17 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Actions-19%20Types-2c5364?style=for-the-badge" alt="Actions"/>
-  <img src="https://img.shields.io/badge/Editor-Drag%20%26%20Drop-2c5364?style=for-the-badge" alt="Editor"/>
+  <img src="https://img.shields.io/badge/Actions-21%20Types-2c5364?style=for-the-badge" alt="Actions"/>
+  <img src="https://img.shields.io/badge/Wizard-GUI%20%2F%20No--Code-2c5364?style=for-the-badge" alt="Wizard"/>
   <img src="https://img.shields.io/badge/Integrations-Vault%20%7C%20WG%20%7C%20Citizens%20%7C%20LP-2c5364?style=for-the-badge" alt="Integrations"/>
-  <img src="https://img.shields.io/badge/Status-Stable%20v1.5.0-00FF9C?style=for-the-badge&logoColor=black" alt="Status"/>
+  <img src="https://img.shields.io/badge/Status-Stable%20v1.6.0-00FF9C?style=for-the-badge&logoColor=black" alt="Status"/>
 </p>
 
 <p align="center">▄︻デ══━一 ▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄ 一━══デ︻▄</p>
 
 <div align="center">
 
-[Что это за плагин?](about.md) • [Быстрый старт](#быстрый-старт) • [Структура аддона](structure.md) • [Действия (Actions)](actions.md) • [Условия (Conditions)](conditions.md) • [GUI-меню](gui.md) • [Интеграции](integrations.md)
+[Что это за плагин?](about.md) • [Журнал изменений](changelog.md) • [Быстрый старт](#быстрый-старт) • [Структура аддона](structure.md) • [Действия (Actions)](actions.md) • [Условия (Conditions)](conditions.md) • [GUI-меню](gui.md) • [Интеграции](integrations.md)
 
 </div>
 

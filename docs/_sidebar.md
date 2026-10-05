@@ -1,5 +1,6 @@
 * [Главная](README.md)
 * [Что это за плагин?](about.md)
+* [Журнал изменений (Changelog)](changelog.md)
 * [Анатомия аддона](structure.md)
 * [Команды и управление](commands.md)
 * [Действия (Actions Engine)](actions.md)
