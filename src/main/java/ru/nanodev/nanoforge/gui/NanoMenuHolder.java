@@ -13,6 +13,10 @@ public class NanoMenuHolder implements InventoryHolder {
     private final String menuKey;
     private Inventory inventory;
     private boolean editMode = false;
+    private int currentPage = 0;
+    // слот -> "значение" элемента списка (имя игрока и т.п.), которым сгенерирован
+    // этот конкретный слот через menus.<key>.list - для передачи как {value} в actions
+    private final java.util.Map<Integer, String> generatedValues = new java.util.HashMap<>();
 
     public NanoMenuHolder(String addonName, String menuKey) {
         this.addonName = addonName;
@@ -25,6 +29,23 @@ public class NanoMenuHolder implements InventoryHolder {
 
     public boolean isEditMode() {
         return editMode;
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public void setCurrentPage(int page) {
+        this.currentPage = Math.max(0, page);
+    }
+
+    public void putGeneratedValue(int slot, String value) {
+        generatedValues.put(slot, value);
+    }
+
+    /** null, если этот слот - обычный статический пункт, а не сгенерированный из menus.*.list. */
+    public String getGeneratedValue(int slot) {
+        return generatedValues.get(slot);
     }
 
     public void setInventory(Inventory inventory) {

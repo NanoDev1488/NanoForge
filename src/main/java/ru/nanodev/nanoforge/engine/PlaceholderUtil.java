@@ -50,6 +50,12 @@ public class PlaceholderUtil {
             for (int i = 0; i < commandArgs.length; i++) {
                 result = result.replace("{arg" + (i + 1) + "}", commandArgs[i]);
             }
+            // {value} - специально для кликов по сгенерированным пунктам меню (menus.*.list),
+            // где "значение" элемента списка (имя игрока и т.п.) передаётся первым commandArg -
+            // см. MenuManager.onClick(): ActionRunner.run(..., new String[]{generatedValue})
+            if (commandArgs.length > 0) {
+                result = result.replace("{value}", commandArgs[0]);
+            }
         }
 
         // PlaceholderAPI - отдельный синтаксис (%...%), конфликтов с {...} быть не может

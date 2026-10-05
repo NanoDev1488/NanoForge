@@ -1,6 +1,5 @@
 package ru.nanodev.nanoforge.integration;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Method;
@@ -20,34 +19,19 @@ import java.util.logging.Logger;
 public class WorldGuardBridge {
 
     private static final Logger LOG = Logger.getLogger("NanoForge");
-    private static Boolean available = null;
-    private static boolean warnedMissing = false;
-
-    private static boolean pluginPresent() {
-        if (available == null) {
-            try {
-                available = Bukkit.getPluginManager().getPlugin("WorldGuard") != null;
-            } catch (Throwable t) {
-                available = false; // Bukkit ещё не поднят/недоступен - считаем WorldGuard недоступным, не падаем
-            }
-            if (!available && !warnedMissing) {
-                warnedMissing = true;
-                LOG.warning("[NanoForge] WorldGuard не найден - условие if: region работать не будет "
-                        + "(проверка региона всегда будет считаться непройденной).");
-            }
-        }
-        return available;
-    }
+    private static final ru.nanodev.nanoforge.util.PluginPresenceCache PRESENCE =
+            new ru.nanodev.nanoforge.util.PluginPresenceCache("WorldGuard",
+                    "[NanoForge] WorldGuard не найден - условие if: region работать не будет "
+                            + "(проверка региона всегда будет считаться непройденной).", LOG);
 
     /** Только для тестов - сбрасывает закешированное состояние проверки WorldGuard. */
     static void resetForTests() {
-        available = null;
-        warnedMissing = false;
+        PRESENCE.resetForTests();
     }
 
     /** @return true если игрок сейчас физически находится в регионе с указанным именем (регистронезависимо). */
     public static boolean isInRegion(Player player, String regionName) {
-        if (!pluginPresent()) return false;
+        if (!PRESENCE.isPresent()) return false;
         try {
             // WorldGuard.getInstance()
             Class<?> wgClass = Class.forName("com.sk89q.worldguard.WorldGuard");

@@ -452,6 +452,151 @@ class MenuManagerTest {
     private static boolean anyBoolean() {
         return org.mockito.ArgumentMatchers.anyBoolean();
     }
+
+    // ---------- пагинация / динамические пункты (menus.*.list) ----------
+
+    private Addon buildAddonWithListMenu(int slotsFrom, int slotsTo) {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("name", "ListAddon");
+        yaml.set("type", "new");
+        yaml.set("enabled", true);
+        yaml.set("menus.players.title", "Игроки {page}/{maxpage}");
+        yaml.set("menus.players.rows", 1);
+        yaml.set("menus.players.list.source", "online_players");
+        yaml.set("menus.players.list.slots_from", slotsFrom);
+        yaml.set("menus.players.list.slots_to", slotsTo);
+        yaml.set("menus.players.list.item.material", "PLAYER_HEAD");
+        yaml.set("menus.players.list.item.name", "{value}");
+        Map<String, Object> clickAction = new LinkedHashMap<>();
+        clickAction.put("type", "message");
+        clickAction.put("text", "выбран {value}");
+        yaml.set("menus.players.list.item.actions", Collections.singletonList(clickAction));
+        // кнопка "вперёд" в отдельном (не пересекающемся с list) слоте
+        yaml.set("menus.players.items.8.material", "ARROW");
+        Map<String, Object> nextAction = new LinkedHashMap<>();
+        nextAction.put("type", "page_next");
+        yaml.set("menus.players.items.8.actions", Collections.singletonList(nextAction));
+        return new Addon(new File("/tmp/nanoforge-menu-manager-test/list-addon.yml"), yaml);
+    }
+
+    private List<Player> mockOnlinePlayers(String... names) {
+        List<Player> players = new java.util.ArrayList<>();
+        for (String name : names) {
+            Player p = mock(Player.class);
+            when(p.getName()).thenReturn(name);
+            players.add(p);
+        }
+        return players;
+    }
+
+    @Test
+    void openGeneratesItemsFromOnlinePlayersListWithinSlotRange() {
+        Addon addon = buildAddonWithListMenu(0, 6); // слоты 0-6, слот 8 занят кнопкой "вперёд"
+        when(addonManager.get("ListAddon")).thenReturn(addon);
+        List<Player> onlinePlayers = mockOnlinePlayers("Alice", "Bob");
+        bukkitMock.when(Bukkit::getOnlinePlayers).thenReturn(onlinePlayers);
+
+        boolean result = menuManager.open(player, "ListAddon", "players");
+
+        assertThat(result).isTrue();
+        NanoMenuHolder holder = (NanoMenuHolder) createdInventory.getHolder();
+        assertThat(holder.getGeneratedValue(0)).isEqualTo("Alice");
+        assertThat(holder.getGeneratedValue(1)).isEqualTo("Bob");
+        assertThat(holder.getGeneratedValue(2)).isNull(); // больше игроков нет
+        verify(createdInventory).setItem(eq(0), any(ItemStack.class));
+        verify(createdInventory).setItem(eq(1), any(ItemStack.class));
+    }
+
+    @Test
+    void pageNextAdvancesToNextPageAndShowsNextChunkOfValues() {
+        Addon addon = buildAddonWithListMenu(0, 0); // ровно 1 слот на страницу -> у каждого игрока своя страница
+        when(addonManager.get("ListAddon")).thenReturn(addon);
+        List<Player> onlinePlayers = mockOnlinePlayers("Alice", "Bob", "Carol");
+        bukkitMock.when(Bukkit::getOnlinePlayers).thenReturn(onlinePlayers);
+
+        menuManager.open(player, "ListAddon", "players");
+        NanoMenuHolder firstPageHolder = (NanoMenuHolder) createdInventory.getHolder();
+        assertThat(firstPageHolder.getGeneratedValue(0)).isEqualTo("Alice");
+
+        menuManager.changePage(player, "ListAddon", "players", 1, false);
+        NanoMenuHolder secondPageHolder = (NanoMenuHolder) createdInventory.getHolder();
+        assertThat(secondPageHolder.getGeneratedValue(0)).isEqualTo("Bob");
+
+        menuManager.changePage(player, "ListAddon", "players", 1, false);
+        NanoMenuHolder thirdPageHolder = (NanoMenuHolder) createdInventory.getHolder();
+        assertThat(thirdPageHolder.getGeneratedValue(0)).isEqualTo("Carol");
+    }
+
+    @Test
+    void pageNextDoesNotGoPastLastPage() {
+        Addon addon = buildAddonWithListMenu(0, 0);
+        when(addonManager.get("ListAddon")).thenReturn(addon);
+        List<Player> onlinePlayers = mockOnlinePlayers("Alice", "Bob");
+        bukkitMock.when(Bukkit::getOnlinePlayers).thenReturn(onlinePlayers);
+
+        menuManager.open(player, "ListAddon", "players");
+        menuManager.changePage(player, "ListAddon", "players", 1, false); // -> страница 1 (Bob)
+        menuManager.changePage(player, "ListAddon", "players", 1, false); // некуда дальше - должно остаться на Bob
+
+        NanoMenuHolder holder = (NanoMenuHolder) createdInventory.getHolder();
+        assertThat(holder.getGeneratedValue(0)).isEqualTo("Bob");
+    }
+
+    @Test
+    void clickOnGeneratedSlotRunsListItemTemplateActionsWithValueSubstituted() {
+        Addon addon = buildAddonWithListMenu(0, 6);
+        when(addonManager.get("ListAddon")).thenReturn(addon);
+        List<Player> onlinePlayers = mockOnlinePlayers("Alice");
+        bukkitMock.when(Bukkit::getOnlinePlayers).thenReturn(onlinePlayers);
+
+        menuManager.open(player, "ListAddon", "players");
+        NanoMenuHolder holder = (NanoMenuHolder) createdInventory.getHolder();
+
+        InventoryClickEvent event = mock(InventoryClickEvent.class);
+        when(event.getInventory()).thenReturn(createdInventory);
+        when(event.getClickedInventory()).thenReturn(createdInventory);
+        when(event.getSlot()).thenReturn(0);
+        when(event.getWhoClicked()).thenReturn(player);
+
+        menuManager.onClick(event);
+
+        verify(player).sendMessage("выбран Alice");
+    }
+
+    @Test
+    void clickOnPageNextButtonAdvancesPage() {
+        Addon addon = buildAddonWithListMenu(0, 0);
+        when(addonManager.get("ListAddon")).thenReturn(addon);
+        List<Player> onlinePlayers = mockOnlinePlayers("Alice", "Bob");
+        bukkitMock.when(Bukkit::getOnlinePlayers).thenReturn(onlinePlayers);
+
+        menuManager.open(player, "ListAddon", "players");
+
+        InventoryClickEvent event = mock(InventoryClickEvent.class);
+        when(event.getInventory()).thenReturn(createdInventory);
+        when(event.getClickedInventory()).thenReturn(createdInventory);
+        when(event.getSlot()).thenReturn(8); // кнопка "вперёд"
+        when(event.getWhoClicked()).thenReturn(player);
+
+        menuManager.onClick(event);
+
+        NanoMenuHolder holderAfter = (NanoMenuHolder) createdInventory.getHolder();
+        assertThat(holderAfter.getGeneratedValue(0)).isEqualTo("Bob");
+    }
+
+    @Test
+    void titlePlaceholdersShowCurrentAndMaxPageOneBased() {
+        Addon addon = buildAddonWithListMenu(0, 0);
+        when(addonManager.get("ListAddon")).thenReturn(addon);
+        List<Player> onlinePlayers = mockOnlinePlayers("Alice", "Bob", "Carol");
+        bukkitMock.when(Bukkit::getOnlinePlayers).thenReturn(onlinePlayers);
+
+        menuManager.open(player, "ListAddon", "players");
+
+        org.mockito.ArgumentCaptor<String> titleCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        bukkitMock.verify(() -> Bukkit.createInventory(any(NanoMenuHolder.class), anyInt(), titleCaptor.capture()));
+        assertThat(titleCaptor.getValue()).contains("1").contains("3"); // страница 1 из 3
+    }
 }
 
 // by t.me/NanoDev_mc
