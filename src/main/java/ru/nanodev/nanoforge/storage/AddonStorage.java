@@ -170,7 +170,7 @@ public class AddonStorage {
         try {
             yaml.save(file);
         } catch (Exception e) {
-            org.bukkit.Bukkit.getLogger().warning("[NanoForge] Не удалось сохранить storage.yml: " + e.getMessage());
+            org.bukkit.Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("storage.save-failed", "error", e.getMessage()));
         }
     }
 }

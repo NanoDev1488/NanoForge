@@ -23,6 +23,7 @@ import ru.nanodev.nanoforge.engine.ConditionChecker;
 import ru.nanodev.nanoforge.engine.FancyFont;
 import ru.nanodev.nanoforge.manager.AddonManager;
 import ru.nanodev.nanoforge.model.Addon;
+import ru.nanodev.nanoforge.util.Messages;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,6 +67,10 @@ public class MenuManager implements Listener {
     /** Короткая обёртка над FancyFont.stylize - для читаемости вызовов ниже. */
     private static String f(String text) {
         return FancyFont.stylize(text);
+    }
+
+    private static String m(String path) {
+        return Messages.get(path);
     }
 
     public MenuManager(NanoForgePlugin plugin, AddonManager addonManager) {
@@ -114,11 +119,11 @@ public class MenuManager implements Listener {
     private boolean open(Player player, String addonName, String menuKey, boolean editMode) {
         Addon addon = addonManager.get(addonName);
         if (addon == null) {
-            player.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + addonName);
+            player.sendMessage(ChatColor.RED + "✖ " + f(m("menu.addon-not-found")) + " " + addonName);
             return false;
         }
         if (!addon.getMenuKeys().contains(menuKey)) {
-            player.sendMessage(ChatColor.RED + "✖ " + f("Меню") + " '" + menuKey + "' " + f("не найдено у аддона") + " " + addonName);
+            player.sendMessage(ChatColor.RED + "✖ " + f(m("menu.menu-not-found-part1")) + " '" + menuKey + "' " + f(m("menu.menu-not-found-part2")) + " " + addonName);
             return false;
         }
 
@@ -289,8 +294,8 @@ public class MenuManager implements Listener {
             try {
                 ActionRunner.run(generatedActions, player, event, this, addon, new String[]{generatedValue});
             } catch (Throwable t) {
-                player.sendMessage(org.bukkit.ChatColor.RED + "✖ " + f("Ошибка при выполнении кнопки меню."));
-                plugin.getLogger().warning("[NanoForge] Ошибка в сгенерированном пункте меню аддона '" + addon.getName() + "': " + t);
+                player.sendMessage(org.bukkit.ChatColor.RED + "✖ " + f(m("menu.action-error")));
+                plugin.getLogger().warning(Messages.get("menu.error.generated-item", "addon", addon.getName(), "error", t));
             }
             return;
         }
@@ -307,8 +312,8 @@ public class MenuManager implements Listener {
         try {
             ActionRunner.run(actions, player, event, this, addon);
         } catch (Throwable t) {
-            player.sendMessage(org.bukkit.ChatColor.RED + "✖ " + f("Ошибка при выполнении кнопки меню."));
-            plugin.getLogger().warning("[NanoForge] Ошибка в меню аддона '" + addon.getName() + "': " + t);
+            player.sendMessage(org.bukkit.ChatColor.RED + "✖ " + f(m("menu.action-error")));
+            plugin.getLogger().warning(Messages.get("menu.error.menu-item", "addon", addon.getName(), "error", t));
         }
     }
 
@@ -356,7 +361,7 @@ public class MenuManager implements Listener {
         try {
             yaml.save(addon.getFile());
         } catch (Exception e) {
-            plugin.getLogger().warning("[NanoForge] Не удалось сохранить меню при редактировании: " + e.getMessage());
+            plugin.getLogger().warning(Messages.get("menu.error.save-failed", "error", e.getMessage()));
         }
     }
 
@@ -366,7 +371,7 @@ public class MenuManager implements Listener {
         NanoMenuHolder holder = (NanoMenuHolder) event.getInventory().getHolder();
         if (holder.isEditMode() && event.getPlayer() instanceof Player) {
             ((Player) event.getPlayer()).sendMessage(ChatColor.GREEN
-                    + "✔ " + f("Меню") + " '" + holder.getMenuKey() + "' " + f("сохранено."));
+                    + "✔ " + f(m("menu.saved")) + " '" + holder.getMenuKey() + "' " + f(m("menu.saved-suffix")));
         }
     }
 
@@ -375,21 +380,17 @@ public class MenuManager implements Listener {
     private void startActionEdit(Player player, NanoMenuHolder holder, int slot) {
         pendingEdits.put(player.getUniqueId(), new PendingActionEdit(holder.getAddonName(), holder.getMenuKey(), slot));
         player.closeInventory();
-        player.sendMessage(ChatColor.LIGHT_PURPLE + "★ " + f("Правка действий для слота") + " " + slot + " ★");
-        player.sendMessage(ChatColor.GRAY + f("Пиши в чат ПО ОДНОЙ строке-действию за раз - можно сколько угодно подряд:"));
+        player.sendMessage(ChatColor.LIGHT_PURPLE + "★ " + f(m("menu.edit.header")) + " " + slot + " ★");
+        player.sendMessage(ChatColor.GRAY + f(m("menu.edit.intro")));
         // сами ключевые слова DSL (message/call/openmenu и т.д.) НЕ прогоняются через FancyFont -
         // это литеральный синтаксис, который игрок должен набрать буквально, как есть
-        player.sendMessage(ChatColor.YELLOW + "message <текст>" + ChatColor.GRAY + " | "
-                + ChatColor.YELLOW + "broadcast <текст>" + ChatColor.GRAY + " | " + ChatColor.YELLOW + "console <команда>");
-        player.sendMessage(ChatColor.YELLOW + "call <плагин> <метод> [аргументы]" + ChatColor.GRAY + " | "
-                + ChatColor.YELLOW + "openmenu <меню> [аддон]" + ChatColor.GRAY + " | " + ChatColor.YELLOW + "closemenu");
-        player.sendMessage(ChatColor.YELLOW + "setvar <ключ> <значение> [global]" + ChatColor.GRAY + " | "
-                + ChatColor.YELLOW + "addvar <ключ> <число> [global]" + ChatColor.GRAY + " | "
-                + ChatColor.YELLOW + "eco_give/eco_take <число>");
-        player.sendMessage(ChatColor.AQUA + "➤ " + f("Каждая строка добавляется К СПИСКУ (не заменяет предыдущие)."));
-        player.sendMessage(ChatColor.AQUA + "➤ " + f("'done'") + " - " + f("сохранить и закончить") + "   "
-                + ChatColor.AQUA + "'undo'" + ChatColor.GRAY + " - " + f("убрать последнюю добавленную строку"));
-        player.sendMessage(ChatColor.RED + "➤ " + f("'cancel'") + " - " + f("отменить всё и ничего не менять."));
+        player.sendMessage(m("menu.edit.dsl-line1"));
+        player.sendMessage(m("menu.edit.dsl-line2"));
+        player.sendMessage(m("menu.edit.dsl-line3"));
+        player.sendMessage(ChatColor.AQUA + "➤ " + f(m("menu.edit.append-hint")));
+        player.sendMessage(ChatColor.AQUA + "➤ " + f("'done'") + " - " + f(m("menu.edit.save-hint-done")) + "   "
+                + ChatColor.AQUA + "'undo'" + ChatColor.GRAY + " - " + f(m("menu.edit.save-hint-undo")));
+        player.sendMessage(ChatColor.RED + "➤ " + f("'cancel'") + " - " + f(m("menu.edit.cancel-hint")));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -418,16 +419,16 @@ public class MenuManager implements Listener {
 
         if (trimmed.equalsIgnoreCase("cancel")) {
             pendingEdits.remove(player.getUniqueId());
-            player.sendMessage(ChatColor.GRAY + f("Отменено, ничего не изменилось."));
+            player.sendMessage(ChatColor.GRAY + f(m("menu.edit.cancelled")));
             return;
         }
 
         if (trimmed.equalsIgnoreCase("undo")) {
             if (pending.collected.isEmpty()) {
-                player.sendMessage(ChatColor.RED + "✖ " + f("Список пуст, нечего отменять."));
+                player.sendMessage(ChatColor.RED + "✖ " + f(m("menu.edit.undo-empty")));
             } else {
                 pending.collected.remove(pending.collected.size() - 1);
-                player.sendMessage(ChatColor.YELLOW + "↩ " + f("Убрана последняя строка. Сейчас в списке:") + " "
+                player.sendMessage(ChatColor.YELLOW + "↩ " + f(m("menu.edit.undo-done")) + " "
                         + pending.collected.size());
             }
             return; // сессия продолжается
@@ -442,27 +443,27 @@ public class MenuManager implements Listener {
         String[] errorOut = new String[1];
         Map<String, Object> action = ActionLineParser.parse(trimmed, errorOut);
         if (action == null) {
-            player.sendMessage(ChatColor.RED + "✖ " + f("Не удалось разобрать:") + " " + errorOut[0]);
-            player.sendMessage(ChatColor.GRAY + f("Строка не добавлена, сессия продолжается - попробуй ещё раз."));
+            player.sendMessage(ChatColor.RED + "✖ " + f(m("menu.edit.parse-failed")) + " " + errorOut[0]);
+            player.sendMessage(ChatColor.GRAY + f(m("menu.edit.parse-failed-hint")));
             return; // сессия продолжается, прогресс не теряется
         }
 
         pending.collected.add(action);
-        player.sendMessage(ChatColor.GREEN + "✔ " + f("Добавлено") + " (#" + pending.collected.size() + "): "
+        player.sendMessage(ChatColor.GREEN + "✔ " + f(m("menu.edit.added")) + " (#" + pending.collected.size() + "): "
                 + ChatColor.GRAY + trimmed);
-        player.sendMessage(ChatColor.GRAY + f("Пиши следующую строку, либо") + " " + ChatColor.AQUA + "'done'"
-                + ChatColor.GRAY + " " + f("чтобы сохранить."));
+        player.sendMessage(ChatColor.GRAY + f(m("menu.edit.continue-hint-part1")) + " " + ChatColor.AQUA + "'done'"
+                + ChatColor.GRAY + " " + f(m("menu.edit.continue-hint-part2")));
     }
 
     private void saveCollectedActions(Player player, PendingActionEdit pending) {
         if (pending.collected.isEmpty()) {
-            player.sendMessage(ChatColor.YELLOW + "⚠ " + f("Ни одной строки не добавлено - ничего не сохранено."));
+            player.sendMessage(ChatColor.YELLOW + "⚠ " + f(m("menu.edit.nothing-collected")));
             return;
         }
 
         Addon addon = addonManager.get(pending.addonName);
         if (addon == null) {
-            player.sendMessage(ChatColor.RED + "✖ " + f("Аддон") + " '" + pending.addonName + "' " + f("больше не существует."));
+            player.sendMessage(ChatColor.RED + "✖ " + f(m("menu.edit.addon-gone")) + " '" + pending.addonName + "' " + f(m("menu.edit.addon-gone-suffix")));
             return;
         }
 
@@ -474,10 +475,10 @@ public class MenuManager implements Listener {
 
         try {
             yaml.save(addon.getFile());
-            player.sendMessage(ChatColor.GREEN + "✔ " + f("Сохранено") + " " + pending.collected.size() + " "
-                    + f("действие(й) для слота") + " " + pending.slot + ".");
+            player.sendMessage(ChatColor.GREEN + "✔ " + f(m("menu.edit.save-success-part1")) + " " + pending.collected.size() + " "
+                    + f(m("menu.edit.save-success-part2")) + " " + pending.slot + ".");
         } catch (Exception e) {
-            player.sendMessage(ChatColor.RED + "✖ " + f("Не удалось сохранить:") + " " + e.getMessage());
+            player.sendMessage(ChatColor.RED + "✖ " + f(m("menu.edit.save-failed")) + " " + e.getMessage());
         }
     }
 }

@@ -47,11 +47,9 @@ public class NanoForgeExpansion extends PlaceholderExpansion {
         }
         try {
             new NanoForgeExpansion(plugin).register();
-            plugin.getLogger().info("[NanoForge] Экспансия PlaceholderAPI зарегистрирована: "
-                    + "%nanoforge_<аддон>_<ключ>%");
+            plugin.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("placeholderapi.registered"));
         } catch (Throwable t) {
-            plugin.getLogger().warning("[NanoForge] Не удалось зарегистрировать экспансию "
-                    + "PlaceholderAPI: " + t);
+            plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("placeholderapi.register-failed", "error", t));
         }
     }
 
