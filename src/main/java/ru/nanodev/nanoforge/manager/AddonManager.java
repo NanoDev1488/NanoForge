@@ -52,8 +52,8 @@ public class AddonManager {
             } catch (Throwable t) {
                 // один битый/кривой addon.yml не должен ронять загрузку остальных аддонов
                 // (и уж тем более старт всего сервера) - просто пропускаем и пишем в консоль.
-                plugin.getLogger().warning("[NanoForge] Не удалось загрузить аддон из папки '"
-                        + dir.getName() + "': " + t + " (проверь синтаксис addon.yml)");
+                plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.load-failed",
+                        "folder", dir.getName(), "error", t));
             }
         }
 
@@ -74,13 +74,11 @@ public class AddonManager {
         if (addon.getType() != Addon.Type.ADDON || addon.getTargetPlugin() == null) return;
         org.bukkit.plugin.Plugin target = Bukkit.getPluginManager().getPlugin(addon.getTargetPlugin());
         if (target == null) {
-            plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName() + "': плагин '"
-                    + addon.getTargetPlugin() + "' пока не найден на сервере (возможно, ещё не загрузился). "
-                    + "Если он реально не установлен - action'ы 'call' у этого аддона просто ничего не будут делать.");
+            plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.target-missing",
+                    "addon", addon.getName(), "target", addon.getTargetPlugin()));
         } else if (!target.isEnabled()) {
-            plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName() + "': плагин '"
-                    + addon.getTargetPlugin() + "' установлен, но выключен. Включи его (например, через PlugMan) "
-                    + "и перезапусти аддон через /nano reload или /nano enable " + addon.getName());
+            plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.target-disabled",
+                    "addon", addon.getName(), "target", addon.getTargetPlugin()));
         }
     }
 
@@ -167,7 +165,7 @@ public class AddonManager {
         File importsDir = new File(addonsFolder.getParentFile(), "imports");
         File zipFile = new File(importsDir, zipFileName);
         if (!zipFile.exists()) {
-            throw new java.io.IOException("файл не найден: plugins/NanoForge/imports/" + zipFileName);
+            throw new java.io.IOException(ru.nanodev.nanoforge.util.Messages.get("manager.import.file-not-found", "file", zipFileName));
         }
 
         File folder = new File(addonsFolder, newName);
@@ -183,7 +181,7 @@ public class AddonManager {
 
         File yamlFile = new File(folder, "addon.yml");
         if (!yamlFile.exists()) {
-            throw new java.io.IOException("в архиве нет addon.yml - это не экспорт NanoForge?");
+            throw new java.io.IOException(ru.nanodev.nanoforge.util.Messages.get("manager.import.no-addon-yml"));
         }
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(yamlFile);
         yaml.set("name", newName);
@@ -222,12 +220,11 @@ public class AddonManager {
         if (target != null) {
             boolean ok = TargetInspector.dump(target, addon.getTargetApiFile());
             if (ok) {
-                plugin.getLogger().info("[NanoForge] Дамп API '" + targetPlugin + "' сохранён в "
-                        + addon.getTargetApiFile().getPath());
+                plugin.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("manager.api-dump-saved",
+                        "target", targetPlugin, "path", addon.getTargetApiFile().getPath()));
             }
         } else {
-            plugin.getLogger().warning("[NanoForge] Плагин '" + targetPlugin
-                    + "' не активен - дамп API не создан (можно сделать позже, пере создав аддон).");
+            plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.api-dump-skipped", "target", targetPlugin));
         }
 
         return addon;
@@ -377,8 +374,11 @@ public class AddonManager {
         if (addon.getType() == Addon.Type.ADDON && addon.getTargetPlugin() != null) {
             org.bukkit.plugin.Plugin target = Bukkit.getPluginManager().getPlugin(addon.getTargetPlugin());
             if (target == null || !target.isEnabled()) {
-                plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName() + "' НЕ включён: плагин '"
-                        + addon.getTargetPlugin() + "' " + (target == null ? "не найден" : "выключен") + " на сервере.");
+                String reason = target == null
+                        ? ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-target-not-found")
+                        : ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-target-disabled");
+                plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-target",
+                        "addon", addon.getName(), "target", addon.getTargetPlugin(), "reason", reason));
                 addon.setEnabled(false);
                 addon.save();
                 return false;
@@ -391,8 +391,8 @@ public class AddonManager {
         // старте сервера (loadAll) эта же проверка мягкая - см. warnIfRequiredMissing.
         List<String> missing = missingRequiredAddons(addon);
         if (!missing.isEmpty()) {
-            plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName() + "' НЕ включён: требует включённых "
-                    + "аддонов " + missing + " (см. 'requires:' в addon.yml).");
+            plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-requires",
+                    "addon", addon.getName(), "missing", missing));
             addon.setEnabled(false);
             addon.save();
             return false;
@@ -417,9 +417,8 @@ public class AddonManager {
     private void warnIfRequiredMissing(Addon addon) {
         List<String> missing = missingRequiredAddons(addon);
         if (!missing.isEmpty()) {
-            plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName() + "' требует аддонов " + missing
-                    + " ('requires:' в addon.yml) - они пока не включены. Если после полной загрузки сервера "
-                    + "это не исправится само - проверь порядок и включи их, потом сделай /nano reload.");
+            plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.requires-warning",
+                    "addon", addon.getName(), "missing", missing));
         }
     }
 
@@ -455,7 +454,7 @@ public class AddonManager {
 
         addon.setEnabled(true);
         addon.save();
-        plugin.getLogger().info("[NanoForge] Включён: " + addon.getName());
+        plugin.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("manager.enabled-log", "addon", addon.getName()));
         syncCommandsToClients();
         return true;
     }
@@ -464,7 +463,7 @@ public class AddonManager {
         cleanupRegistrations(addon.getName());
         addon.setEnabled(false);
         addon.save();
-        plugin.getLogger().info("[NanoForge] Выключен: " + addon.getName());
+        plugin.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("manager.disabled-log", "addon", addon.getName()));
         syncCommandsToClients();
         return true;
     }
@@ -520,7 +519,7 @@ public class AddonManager {
             field.setAccessible(true);
             return (SimpleCommandMap) field.get(Bukkit.getServer());
         } catch (Exception e) {
-            plugin.getLogger().warning("[NanoForge] Не удалось получить CommandMap: " + e.getMessage());
+            plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.command-map-failed", "error", e.getMessage()));
             return null;
         }
     }

@@ -85,14 +85,15 @@ public class ActionRunner {
             try {
                 if (!ConditionChecker.check(action, player, currentAddon)) {
                     if (debug) {
-                        Bukkit.getLogger().info("[NanoForge-debug] " + currentAddonName + ": action '" + debugType
-                                + "' ПРОПУЩЕН (условие if не прошло)");
+                        Bukkit.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("engine.debug.skipped",
+                                "addon", currentAddonName, "type", debugType));
                     }
                     continue; // условие не прошло - пропускаем этот action, идём к следующему
                 }
                 if (debug) {
-                    Bukkit.getLogger().info("[NanoForge-debug] " + currentAddonName + ": action '" + debugType
-                            + "' выполняется" + (player != null ? " (игрок " + player.getName() + ")" : ""));
+                    String playerPart = player != null ? " (игрок " + player.getName() + ")" : "";
+                    Bukkit.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("engine.debug.running",
+                            "addon", currentAddonName, "type", debugType, "player", playerPart));
                 }
 
                 String type = String.valueOf(action.getOrDefault("type", "")).toLowerCase();
@@ -120,9 +121,8 @@ public class ActionRunner {
                         for (String rawCmd : commands) {
                             String cmd = withResult(PlaceholderUtil.apply(rawCmd, player, commandArgs), lastCallResult[0]);
                             if (!ru.nanodev.nanoforge.util.ConsoleRateLimiter.allow()) {
-                                Bukkit.getLogger().warning("[NanoForge] console: превышен лимит "
-                                        + ru.nanodev.nanoforge.util.ConsoleRateLimiter.MAX_PER_SECOND
-                                        + " команд/сек - пропускаю (проверь addon.yml на зацикливание): " + cmd);
+                                Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.console.rate-limit-exceeded",
+                                        "max", ru.nanodev.nanoforge.util.ConsoleRateLimiter.MAX_PER_SECOND, "command", cmd));
                                 continue;
                             }
                             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
@@ -169,14 +169,14 @@ public class ActionRunner {
                                 player.stopSound(org.bukkit.Sound.valueOf(soundName.toUpperCase()));
                             }
                         } catch (IllegalArgumentException e) {
-                            Bukkit.getLogger().warning("[NanoForge] sound_stop: неизвестный звук '" + soundName + "'");
+                            Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.sound-stop.unknown-sound", "sound", soundName));
                         }
                         break;
                     }
                     case "discord_webhook": {
                         String url = String.valueOf(action.getOrDefault("url", ""));
                         if (url.isEmpty() || "null".equals(url)) {
-                            Bukkit.getLogger().warning("[NanoForge] discord_webhook: не указан 'url'");
+                            Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.discord-webhook.missing-url"));
                             break;
                         }
                         String content = withResult(PlaceholderUtil.apply(
@@ -264,7 +264,7 @@ public class ActionRunner {
                         int amount = Math.max(1, (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(amountRaw, 1));
                         Material material = ru.nanodev.nanoforge.util.MaterialUtil.tryParse(materialName);
                         if (material == null) {
-                            Bukkit.getLogger().warning("[NanoForge] give_item: неизвестный материал '" + materialName + "'");
+                            Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.give-item.unknown-material", "material", materialName));
                             break;
                         }
                         ItemStack stack = new ItemStack(material, amount);
@@ -295,7 +295,7 @@ public class ActionRunner {
                             org.bukkit.Sound sound = org.bukkit.Sound.valueOf(soundName);
                             player.playSound(player.getLocation(), sound, volume, pitch);
                         } catch (IllegalArgumentException e) {
-                            Bukkit.getLogger().warning("[NanoForge] play_sound: неизвестный звук '" + soundName + "'");
+                            Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.play-sound.unknown-sound", "sound", soundName));
                         }
                         break;
                     }
@@ -311,7 +311,7 @@ public class ActionRunner {
                             org.bukkit.Particle particle = org.bukkit.Particle.valueOf(particleName);
                             player.spawnParticle(particle, player.getLocation(), count, offsetX, offsetY, offsetZ, extra);
                         } catch (IllegalArgumentException e) {
-                            Bukkit.getLogger().warning("[NanoForge] particle: неизвестная частица '" + particleName + "'");
+                            Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.particle.unknown-particle", "particle", particleName));
                         }
                         break;
                     }
@@ -321,7 +321,7 @@ public class ActionRunner {
                                 ? Bukkit.getWorld(String.valueOf(action.get("world")))
                                 : player.getWorld();
                         if (world == null) {
-                            Bukkit.getLogger().warning("[NanoForge] teleport: мир не найден");
+                            Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.teleport.world-not-found"));
                             break;
                         }
                         double x = ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("x"), player.getLocation().getX());
@@ -369,15 +369,15 @@ public class ActionRunner {
                         break;
                     }
                     default:
-                        Bukkit.getLogger().warning("[NanoForge] Неизвестный тип действия: " + type);
+                        Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.unknown-action-type", "type", type));
                 }
             } catch (Throwable t) {
                 // ЛЮБАЯ ошибка внутри одного action (кривой параметр, NPE, метод не нашёлся и т.д.)
                 // не должна ронять всю цепочку и уж тем более всплывать наверх огромным
                 // стектрейсом Bukkit'а - логируем одну понятную строку и идём к следующему action.
                 String addonLabel = currentAddonName != null ? currentAddonName : "?";
-                Bukkit.getLogger().warning("[NanoForge] Аддон '" + addonLabel + "': ошибка в action ("
-                        + action.getOrDefault("type", "?") + "): " + t);
+                Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.action-error",
+                        "addon", addonLabel, "type", action.getOrDefault("type", "?"), "error", t));
             }
         }
     }
@@ -420,11 +420,11 @@ public class ActionRunner {
             }
             int code = conn.getResponseCode();
             if (code >= 300) {
-                Bukkit.getLogger().warning("[NanoForge] discord_webhook: сервер Discord ответил кодом " + code);
+                Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.discord-webhook.bad-response", "code", code));
             }
             conn.disconnect();
         } catch (Exception e) {
-            Bukkit.getLogger().warning("[NanoForge] discord_webhook: не удалось отправить: " + e);
+            Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.discord-webhook.send-failed", "error", e));
         }
     }
 

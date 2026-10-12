@@ -8,6 +8,7 @@ import org.bukkit.plugin.EventExecutor;
 import ru.nanodev.nanoforge.NanoForgePlugin;
 import ru.nanodev.nanoforge.engine.ActionRunner;
 import ru.nanodev.nanoforge.model.Addon;
+import ru.nanodev.nanoforge.util.Messages;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +44,7 @@ public class DynamicListener implements Listener {
     public boolean register(Addon addon, String eventKey) {
         Class<? extends Event> eventClass = resolveEventClass(eventKey);
         if (eventClass == null) {
-            plugin.getLogger().warning("[NanoForge] Не найден класс события: " + eventKey + " (аддон " + addon.getName() + ")");
+            plugin.getLogger().warning(Messages.get("dynamic.listener.class-not-found", "event", eventKey, "addon", addon.getName()));
             return false;
         }
 
@@ -57,8 +58,8 @@ public class DynamicListener implements Listener {
                 // ActionRunner уже ловит ошибки внутри отдельных actions, но это - последний
                 // рубеж: если что-то всё же прорвалось сюда, Bukkit НЕ должен печатать
                 // "Could not pass event ... to NanoForge" с полным стектрейсом на весь чат/консоль.
-                plugin.getLogger().warning("[NanoForge] Аддон '" + addon.getName()
-                        + "': ошибка при обработке события " + eventKey + ": " + t);
+                plugin.getLogger().warning(Messages.get("dynamic.listener.error-log",
+                        "addon", addon.getName(), "event", eventKey, "error", t));
             }
         };
 

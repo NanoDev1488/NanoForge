@@ -128,7 +128,7 @@ public class StartupChecks {
      * компонентов игнорируются. Если строку разобрать вообще не удалось - считаем, что
      * сравнивать нечего, и молчим (false), а не пугаем ложным предупреждением.
      */
-    static boolean isVersionBelow(String actual, String minRequired) {
+    public static boolean isVersionBelow(String actual, String minRequired) {
         try {
             int[] a = parse(actual.split("-")[0]);
             int[] min = parse(minRequired.split("-")[0]);

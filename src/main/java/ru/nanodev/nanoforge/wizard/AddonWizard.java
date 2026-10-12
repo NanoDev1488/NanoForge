@@ -16,6 +16,7 @@ import ru.nanodev.nanoforge.NanoForgePlugin;
 import ru.nanodev.nanoforge.manager.AddonManager;
 import ru.nanodev.nanoforge.model.Addon;
 import ru.nanodev.nanoforge.util.ItemBuilder;
+import ru.nanodev.nanoforge.util.Messages;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -129,7 +130,7 @@ public class AddonWizard implements Listener {
                 openPluginChoice(player, 0);
             } else if (event.getSlot() == 22) {
                 player.closeInventory();
-                player.sendMessage(ChatColor.GRAY + "Отменено.");
+                player.sendMessage(Messages.get("wizard.cancel.toast"));
             }
             return;
         }
@@ -137,7 +138,7 @@ public class AddonWizard implements Listener {
         // PLUGIN_CHOICE
         if (event.getSlot() == 49) {
             player.closeInventory();
-            player.sendMessage(ChatColor.GRAY + "Отменено.");
+            player.sendMessage(Messages.get("wizard.cancel.toast"));
             return;
         }
         if (event.getSlot() == 45) {
@@ -155,9 +156,10 @@ public class AddonWizard implements Listener {
 
     private void promptForName(Player player, boolean addonType, String targetPlugin) {
         pendingNamePrompts.put(player.getUniqueId(), new PendingName(addonType, targetPlugin));
-        player.sendMessage(ChatColor.LIGHT_PURPLE + "★ " + ChatColor.RESET
-                + (addonType ? "Аддон к плагину '" + targetPlugin + "'" : "Мини-плагин") + " ★");
-        player.sendMessage(ChatColor.GRAY + "Напиши в чат ИМЯ (без пробелов) - или 'cancel' для отмены.");
+        player.sendMessage(addonType
+                ? Messages.get("wizard.prompt.title-addon", "target", targetPlugin)
+                : Messages.get("wizard.prompt.title-new"));
+        player.sendMessage(Messages.get("wizard.prompt.hint"));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -175,17 +177,15 @@ public class AddonWizard implements Listener {
         pendingNamePrompts.remove(player.getUniqueId());
 
         if (rawName.equalsIgnoreCase("cancel")) {
-            player.sendMessage(ChatColor.GRAY + "Отменено, ничего не создано.");
+            player.sendMessage(Messages.get("wizard.name.cancelled"));
             return;
         }
         if (rawName.isEmpty() || rawName.contains(" ") || rawName.contains("/") || rawName.contains("\\")) {
-            player.sendMessage(ChatColor.RED + "✖ Имя не должно быть пустым и не должно содержать пробелы/слэши. "
-                    + "Начни заново: /nano wizard");
+            player.sendMessage(Messages.get("wizard.name.invalid"));
             return;
         }
         if (addonManager.get(rawName) != null) {
-            player.sendMessage(ChatColor.RED + "✖ Аддон с именем '" + rawName + "' уже существует. "
-                    + "Начни заново с другим именем: /nano wizard");
+            player.sendMessage(Messages.get("wizard.name.taken", "name", rawName));
             return;
         }
 
@@ -193,12 +193,10 @@ public class AddonWizard implements Listener {
                 ? addonManager.createAddon(pending.targetPlugin, rawName)
                 : addonManager.createNew(rawName);
 
-        player.sendMessage(ChatColor.GREEN + "✔ Создано: " + created.getName()
-                + ChatColor.GRAY + " (" + (pending.addonType ? "addon -> " + pending.targetPlugin : "new") + ")");
-        player.sendMessage(ChatColor.YELLOW + "➤ /nano edit " + created.getName() + " main "
-                + ChatColor.GRAY + "- настроить пример-меню");
-        player.sendMessage(ChatColor.YELLOW + "➤ /nano enable " + created.getName() + " "
-                + ChatColor.GRAY + "- включить, когда будет готов");
+        player.sendMessage(Messages.get("wizard.done.created", "addon", created.getName(),
+                "kind", pending.addonType ? "addon -> " + pending.targetPlugin : "new"));
+        player.sendMessage(Messages.get("wizard.done.edit-hint", "addon", created.getName()));
+        player.sendMessage(Messages.get("wizard.done.enable-hint", "addon", created.getName()));
     }
 }
 

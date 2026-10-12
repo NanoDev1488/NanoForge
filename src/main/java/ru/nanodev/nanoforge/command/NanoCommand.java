@@ -13,6 +13,7 @@ import ru.nanodev.nanoforge.engine.FancyFont;
 import ru.nanodev.nanoforge.manager.AddonManager;
 import ru.nanodev.nanoforge.model.Addon;
 import ru.nanodev.nanoforge.gui.MenuManager;
+import ru.nanodev.nanoforge.util.Messages;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -26,6 +27,10 @@ import java.util.stream.Collectors;
  * (см. класс) и несколько "нормальных" символов-декораций (★ ➤ • ✔ ✖ ⚠) -
  * пользовательские данные (имена аддонов/плагинов, пути) шрифтом НЕ прогоняются,
  * чтобы оставались читаемыми как есть.
+ *
+ * Сам ТЕКСТ сообщений (без цвета/символа/переменных) живёт в messages.yml
+ * (см. {@link Messages}) - здесь только собирается итоговая строка вокруг него,
+ * ровно как раньше собиралась вокруг строкового литерала.
  */
 public class NanoCommand implements CommandExecutor, TabCompleter {
 
@@ -47,10 +52,14 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         return FancyFont.stylize(text);
     }
 
+    private static String m(String path) {
+        return Messages.get(path);
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("nano.admin")) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Нет прав."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.no-permission")));
             return true;
         }
 
@@ -94,9 +103,11 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleDiff(sender, args);
             case "debug":
                 return handleDebug(sender, args);
+            case "update":
+                return handleUpdate(sender);
             case "wizard":
                 if (!(sender instanceof Player)) {
-                    sender.sendMessage(ChatColor.RED + "✖ " + f("Визард можно запустить только игроку."));
+                    sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.wizard.only-player")));
                     return true;
                 }
                 addonWizard.start((Player) sender);
@@ -109,62 +120,62 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleDuplicate(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano duplicate <аддон> <новое_имя>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano duplicate <аддон> <новое_имя>");
             return true;
         }
         String source = args[1];
         String newName = args[2];
         if (manager.get(source) == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + source);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + source);
             return true;
         }
         if (manager.get(newName) != null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон с именем") + " '" + newName + "' " + f("уже существует."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.duplicate.name-label")) + " '" + newName + "' " + f(m("command.already-exists")));
             return true;
         }
         Addon copy = manager.duplicate(source, newName);
         if (copy == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось создать копию."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.duplicate.failed")));
             return true;
         }
-        sender.sendMessage(ChatColor.GREEN + "✔ " + f("Создана копия") + " '" + source + "' → '" + newName + "' "
-                + f("(выключена, включи вручную)."));
+        sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.duplicate.created")) + " '" + source + "' → '" + newName + "' "
+                + f(m("command.duplicate.created-suffix")));
         return true;
     }
 
     private boolean handleExport(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano export <аддон>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano export <аддон>");
             return true;
         }
         String name = args[1];
         if (manager.get(name) == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + name);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + name);
             return true;
         }
         try {
             java.io.File zip = manager.exportAddon(name);
-            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Аддон экспортирован:") + " " + zip.getPath());
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.export.exported")) + " " + zip.getPath());
         } catch (java.io.IOException e) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Ошибка экспорта:") + " " + e.getMessage());
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.export.failed")) + " " + e.getMessage());
         }
         return true;
     }
 
     private boolean handleVars(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano vars <аддон>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano vars <аддон>");
             return true;
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + args[1]);
             return true;
         }
         java.util.Map<String, Object> vars = addon.getStorage().getAllGlobalVars();
-        sender.sendMessage(ChatColor.GOLD + "★ " + f("Глобальные переменные") + " " + addon.getName() + " ★");
+        sender.sendMessage(ChatColor.GOLD + "★ " + f(m("command.vars.header")) + " " + addon.getName() + " ★");
         if (vars.isEmpty()) {
-            sender.sendMessage(ChatColor.GRAY + f("(пусто)"));
+            sender.sendMessage(ChatColor.GRAY + f(m("command.vars.empty")));
         } else {
             for (java.util.Map.Entry<String, Object> e : vars.entrySet()) {
                 sender.sendMessage(ChatColor.YELLOW + "• " + e.getKey() + " = " + ChatColor.GRAY + e.getValue());
@@ -175,83 +186,99 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleImport(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano import <файл.zip> <новое_имя>");
-            sender.sendMessage(ChatColor.GRAY + f("Файл должен лежать в") + " plugins/NanoForge/imports/");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano import <файл.zip> <новое_имя>");
+            sender.sendMessage(ChatColor.GRAY + f(m("command.import.usage-hint")) + " plugins/NanoForge/imports/");
             return true;
         }
         String fileName = args[1];
         String newName = args[2];
         if (manager.get(newName) != null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон с именем") + " '" + newName + "' " + f("уже существует."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.import.name-label")) + " '" + newName + "' " + f(m("command.already-exists")));
             return true;
         }
         try {
             Addon addon = manager.importAddon(fileName, newName);
-            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Аддон импортирован как") + " '" + addon.getName() + "' "
-                    + f("(выключен, проверь и включи вручную)."));
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.import.imported")) + " '" + addon.getName() + "' "
+                    + f(m("command.import.imported-suffix")));
         } catch (java.io.IOException e) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Ошибка импорта:") + " " + e.getMessage());
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.import.failed")) + " " + e.getMessage());
         }
         return true;
     }
 
     private boolean handleReload(CommandSender sender) {
         manager.reloadAll();
-        sender.sendMessage(ChatColor.GREEN + "✔ " + f("NanoForge: все аддоны перезагружены с диска")
-                + " (" + manager.getAddons().size() + " " + f("шт.") + ")");
+        Messages.reload(plugin);
+        sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.reload.success"))
+                + " (" + manager.getAddons().size() + " " + f(m("command.reload.unit")) + ")");
+        return true;
+    }
+
+    /**
+     * Ручная проверка обновлений (та же, что автоматически выполняется при старте сервера,
+     * см. {@link ru.nanodev.nanoforge.update.UpdateChecker}). Запрос к GitHub асинхронный,
+     * поэтому отправитель сразу получает "проверяю...", а результат придёт чуть позже тем же
+     * sender'ом (для игрока это безопасно - Bukkit сам переносит sendMessage в главный поток
+     * из scheduler'а, а здесь используется runTask внутри checkForUpdates/UpdateChecker).
+     */
+    private boolean handleUpdate(CommandSender sender) {
+        sender.sendMessage(ChatColor.YELLOW + "➤ " + f(m("command.update.checking"))
+                + " " + ChatColor.GRAY + "(NanoDev1488/NanoForge)");
+        plugin.checkForUpdates(result ->
+                Bukkit.getScheduler().runTask(plugin, () ->
+                        sender.sendMessage(ChatColor.GOLD + "★ " + f(m("command.update.result")) + " " + ChatColor.GRAY + result)));
         return true;
     }
 
     private boolean handleInfo(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano info <аддон>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano info <аддон>");
             return true;
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + args[1]);
             return true;
         }
         sender.sendMessage(ChatColor.GOLD + "★ " + addon.getName() + " ★");
-        sender.sendMessage(ChatColor.YELLOW + f("Тип:") + " " + ChatColor.GRAY + addon.getType());
+        sender.sendMessage(ChatColor.YELLOW + f(m("command.info.type-label")) + " " + ChatColor.GRAY + addon.getType());
         if (addon.getTargetPlugin() != null) {
             org.bukkit.plugin.Plugin target = Bukkit.getPluginManager().getPlugin(addon.getTargetPlugin());
             String statusText;
-            if (target == null) statusText = ChatColor.RED + " (" + f("не установлен на сервере") + ")";
-            else if (!target.isEnabled()) statusText = ChatColor.RED + " (" + f("установлен, но ВЫКЛЮЧЕН") + ")";
-            else statusText = ChatColor.GREEN + " (" + f("активен") + ")";
-            sender.sendMessage(ChatColor.YELLOW + f("Целевой плагин:") + " " + ChatColor.GRAY + addon.getTargetPlugin() + statusText);
+            if (target == null) statusText = ChatColor.RED + " (" + f(m("command.info.target-not-installed")) + ")";
+            else if (!target.isEnabled()) statusText = ChatColor.RED + " (" + f(m("command.info.target-disabled")) + ")";
+            else statusText = ChatColor.GREEN + " (" + f(m("command.info.target-active")) + ")";
+            sender.sendMessage(ChatColor.YELLOW + f(m("command.info.target-label")) + " " + ChatColor.GRAY + addon.getTargetPlugin() + statusText);
 
             if (target != null && !target.isEnabled() && sender instanceof Player
                     && ru.nanodev.nanoforge.integration.PlugManBridge.isAvailable()) {
                 ChatButtons.sendRunCommandButton((Player) sender,
-                        ChatColor.GRAY + "  ", ChatColor.GREEN + "" + ChatColor.BOLD + "[" + f("Включить") + " " + addon.getTargetPlugin() + "]",
+                        ChatColor.GRAY + "  ", ChatColor.GREEN + "" + ChatColor.BOLD + "[" + f(m("command.info.enable-button-label")) + " " + addon.getTargetPlugin() + "]",
                         ru.nanodev.nanoforge.integration.PlugManBridge.enableCommand(addon.getTargetPlugin()),
-                        "&a" + f("Кликни, чтобы включить через PlugMan"));
+                        "&a" + f(m("command.info.enable-button-hover")));
             }
         }
-        sender.sendMessage(ChatColor.YELLOW + f("Статус:") + " "
-                + (addon.isEnabled() ? ChatColor.GREEN + f("включён") : ChatColor.RED + f("выключен")));
-        sender.sendMessage(ChatColor.YELLOW + f("Команды:") + " " + ChatColor.GRAY + addon.getCommandKeys());
-        sender.sendMessage(ChatColor.YELLOW + f("События:") + " " + ChatColor.GRAY + addon.getEventKeys());
-        sender.sendMessage(ChatColor.YELLOW + f("Меню:") + " " + ChatColor.GRAY + addon.getMenuKeys());
-        sender.sendMessage(ChatColor.YELLOW + f("Папка:") + " " + ChatColor.GRAY + addon.getFolder().getPath());
+        sender.sendMessage(ChatColor.YELLOW + f(m("command.info.status-label")) + " "
+                + (addon.isEnabled() ? ChatColor.GREEN + f(m("command.info.status-enabled")) : ChatColor.RED + f(m("command.info.status-disabled"))));
+        sender.sendMessage(ChatColor.YELLOW + f(m("command.info.commands-label")) + " " + ChatColor.GRAY + addon.getCommandKeys());
+        sender.sendMessage(ChatColor.YELLOW + f(m("command.info.events-label")) + " " + ChatColor.GRAY + addon.getEventKeys());
+        sender.sendMessage(ChatColor.YELLOW + f(m("command.info.menus-label")) + " " + ChatColor.GRAY + addon.getMenuKeys());
+        sender.sendMessage(ChatColor.YELLOW + f(m("command.info.folder-label")) + " " + ChatColor.GRAY + addon.getFolder().getPath());
         return true;
     }
 
     private boolean handleMenu(CommandSender sender, String[] args, boolean edit) {
         // /nano menu <аддон> <меню>   или   /nano edit <аддон> <меню>
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Меню можно открыть только игроку."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.menu.player-only")));
             return true;
         }
         if (args.length < 3) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano " + args[0] + " <аддон> <меню>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano " + args[0] + " <аддон> <меню>");
             return true;
         }
         if (edit) {
-            sender.sendMessage(ChatColor.LIGHT_PURPLE + f("Режим редактирования: перетаскивай предметы в слоты - ")
-                    + f("они станут иконками кнопок. Закрой меню, чтобы сохранить."));
+            sender.sendMessage(ChatColor.LIGHT_PURPLE + f(m("command.menu.edit-mode-hint")));
             menuManager.openEdit((Player) sender, args[1], args[2]);
         } else {
             menuManager.open((Player) sender, args[1], args[2]);
@@ -263,76 +290,76 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         // /nano create addon <targetPlugin> <name>
         // /nano create new <name>
         if (args.length < 3) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano create <addon|new> ...");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano create <addon|new> ...");
             return true;
         }
         String kind = args[1].toLowerCase();
 
         if (kind.equals("addon")) {
             if (args.length < 4) {
-                sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano create addon <плагин> <имя_аддона>");
+                sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano create addon <плагин> <имя_аддона>");
                 return true;
             }
             String targetPlugin = args[2];
             String name = args[3];
 
             if (Bukkit.getPluginManager().getPlugin(targetPlugin) == null) {
-                sender.sendMessage(ChatColor.YELLOW + "⚠ " + f("Внимание: плагин") + " '" + targetPlugin + "' "
-                        + f("сейчас не найден на сервере, но файл всё равно создам."));
+                sender.sendMessage(ChatColor.YELLOW + "⚠ " + f(m("command.create.target-missing-warning")) + " '" + targetPlugin + "' "
+                        + f(m("command.create.target-missing-warning-suffix")));
             }
             if (manager.get(name) != null) {
-                sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон с именем") + " '" + name + "' " + f("уже существует."));
+                sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.create.addon-name-label")) + " '" + name + "' " + f(m("command.already-exists")));
                 return true;
             }
 
             Addon addon = manager.createAddon(targetPlugin, name);
-            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Создан аддон") + " '" + addon.getName() + "' "
-                    + f("для плагина") + " '" + targetPlugin + "'.");
-            sender.sendMessage(ChatColor.GRAY + f("Редактируй:") + " plugins/NanoForge/addons/" + addon.getName() + "/addon.yml");
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.create.created-addon")) + " '" + addon.getName() + "' "
+                    + f(m("command.create.created-for")) + " '" + targetPlugin + "'.");
+            sender.sendMessage(ChatColor.GRAY + f(m("command.create.edit-hint")) + " plugins/NanoForge/addons/" + addon.getName() + "/addon.yml");
             if (addon.getTargetApiFile().exists()) {
-                sender.sendMessage(ChatColor.GRAY + f("Список классов/методов") + " '" + targetPlugin + "': plugins/NanoForge/addons/"
+                sender.sendMessage(ChatColor.GRAY + f(m("command.create.target-api-hint")) + " '" + targetPlugin + "': plugins/NanoForge/addons/"
                         + addon.getName() + "/target-api.txt");
             }
-            sender.sendMessage(ChatColor.GRAY + "➤ " + f("Включить:") + " /nano enable " + addon.getName());
+            sender.sendMessage(ChatColor.GRAY + "➤ " + f(m("command.create.enable-hint")) + " /nano enable " + addon.getName());
             return true;
 
         } else if (kind.equals("new")) {
             String name = args[2];
             if (manager.get(name) != null) {
-                sender.sendMessage(ChatColor.RED + "✖ " + f("Плагин с именем") + " '" + name + "' " + f("уже существует."));
+                sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.create.plugin-name-label")) + " '" + name + "' " + f(m("command.already-exists")));
                 return true;
             }
             Addon addon = manager.createNew(name);
-            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Создан новый мини-плагин") + " '" + addon.getName() + "'.");
-            sender.sendMessage(ChatColor.GRAY + f("Редактируй:") + " plugins/NanoForge/addons/" + addon.getName() + "/addon.yml");
-            sender.sendMessage(ChatColor.GRAY + "➤ " + f("Включить:") + " /nano enable " + addon.getName());
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.create.created-new")) + " '" + addon.getName() + "'.");
+            sender.sendMessage(ChatColor.GRAY + f(m("command.create.edit-hint")) + " plugins/NanoForge/addons/" + addon.getName() + "/addon.yml");
+            sender.sendMessage(ChatColor.GRAY + "➤ " + f(m("command.create.enable-hint")) + " /nano enable " + addon.getName());
             return true;
 
         } else {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Второй аргумент должен быть 'addon' или 'new'."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.create.bad-kind")));
             return true;
         }
     }
 
     private boolean handleToggle(CommandSender sender, String[] args, boolean enable) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano " + (enable ? "enable" : "disable") + " <имя>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano " + (enable ? "enable" : "disable") + " <имя>");
             return true;
         }
         String name = args[1];
         Addon addon = manager.get(name);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Не найдено:") + " " + name);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.toggle.not-found")) + " " + name);
             return true;
         }
 
         boolean ok = enable ? manager.enable(name) : manager.disable(name);
         if (ok) {
-            sender.sendMessage(ChatColor.GREEN + "✔ " + (enable ? f("Включено:") : f("Выключено:")) + " " + name);
+            sender.sendMessage(ChatColor.GREEN + "✔ " + (enable ? f(m("command.toggle.enabled")) : f(m("command.toggle.disabled"))) + " " + name);
         } else if (enable && addon.getTargetPlugin() != null) {
             reportMissingOrDisabledTarget(sender, addon);
         } else {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось выполнить операцию для:") + " " + name);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.toggle.failed")) + " " + name);
         }
         return true;
     }
@@ -347,28 +374,28 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         org.bukkit.plugin.Plugin target = Bukkit.getPluginManager().getPlugin(targetName);
 
         if (target == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось включить") + " '" + addon.getName() + "': "
-                    + f("плагин") + " '" + targetName + "' " + f("не установлен на сервере."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.toggle.cannot-enable")) + " '" + addon.getName() + "': "
+                    + f(m("command.toggle.plugin-label")) + " '" + targetName + "' " + f(m("command.toggle.target-not-installed")));
             return;
         }
 
         if (!target.isEnabled()) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось включить") + " '" + addon.getName() + "': "
-                    + f("плагин") + " '" + targetName + "' " + f("установлен, но сейчас ВЫКЛЮЧЕН."));
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.toggle.cannot-enable")) + " '" + addon.getName() + "': "
+                    + f(m("command.toggle.plugin-label")) + " '" + targetName + "' " + f(m("command.toggle.target-disabled")));
             if (sender instanceof Player && ru.nanodev.nanoforge.integration.PlugManBridge.isAvailable()) {
                 ChatButtons.sendRunCommandButton((Player) sender,
-                        ChatColor.GRAY + "➤ " + f("Можно включить прямо отсюда:") + " ",
-                        ChatColor.GREEN + "" + ChatColor.BOLD + "[" + f("Включить") + " " + targetName + "]",
+                        ChatColor.GRAY + "➤ " + f(m("command.toggle.enable-from-here")) + " ",
+                        ChatColor.GREEN + "" + ChatColor.BOLD + "[" + f(m("command.toggle.enable-button-label")) + " " + targetName + "]",
                         ru.nanodev.nanoforge.integration.PlugManBridge.enableCommand(targetName),
-                        "&a" + f("Кликни, чтобы выполнить:") + " /" + ru.nanodev.nanoforge.integration.PlugManBridge.enableCommand(targetName));
-                sender.sendMessage(ChatColor.GRAY + "(" + f("после включения запусти") + " /nano enable " + addon.getName() + " " + f("ещё раз") + ")");
+                        "&a" + f(m("command.toggle.enable-button-hover")) + " /" + ru.nanodev.nanoforge.integration.PlugManBridge.enableCommand(targetName));
+                sender.sendMessage(ChatColor.GRAY + "(" + f(m("command.toggle.retry-hint")) + " /nano enable " + addon.getName() + " " + f(m("command.toggle.retry-hint-suffix")) + ")");
             }
             return;
         }
 
         // target есть и включён, но enable всё равно вернул false - что-то ещё пошло не так
-        sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось включить") + " '" + addon.getName() + "' "
-                + f("по неизвестной причине - смотри консоль."));
+        sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.toggle.cannot-enable")) + " '" + addon.getName() + "' "
+                + f(m("command.toggle.unknown-reason")));
     }
 
     private boolean handleValidate(CommandSender sender, String[] args) {
@@ -377,7 +404,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + args[1]);
             return true;
         }
         printValidationReport(sender, addon);
@@ -388,7 +415,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
     private boolean handleAuditAll(CommandSender sender) {
         java.util.Collection<Addon> addons = manager.getAddons();
         if (addons.isEmpty()) {
-            sender.sendMessage(ChatColor.YELLOW + "⚠ " + f("Аддонов пока нет."));
+            sender.sendMessage(ChatColor.YELLOW + "⚠ " + f(m("command.validate.no-addons")));
             return true;
         }
         int totalErrors = 0;
@@ -399,22 +426,22 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
             long warnings = issues.stream().filter(i -> i.startsWith("WARN")).count();
             totalErrors += errors;
             totalWarnings += warnings;
-            String status = errors > 0 ? ChatColor.RED + "✖ " + errors + " ошибок"
-                    : warnings > 0 ? ChatColor.YELLOW + "⚠ " + warnings + " предупреждений"
-                    : ChatColor.GREEN + "✔ ок";
+            String status = errors > 0 ? ChatColor.RED + "✖ " + errors + " " + m("command.validate.errors-suffix")
+                    : warnings > 0 ? ChatColor.YELLOW + "⚠ " + warnings + " " + m("command.validate.warnings-suffix")
+                    : ChatColor.GREEN + "✔ " + m("command.validate.ok");
             sender.sendMessage(ChatColor.YELLOW + "• " + addon.getName() + ChatColor.GRAY + " - " + status);
         }
-        sender.sendMessage(ChatColor.GOLD + "★ " + f("Итого:") + " " + addons.size() + " " + f("аддонов, ")
-                + totalErrors + " " + f("ошибок, ") + totalWarnings + " " + f("предупреждений."));
+        sender.sendMessage(ChatColor.GOLD + "★ " + f(m("command.validate.total-label")) + " " + addons.size() + " " + f(m("command.validate.total-addons-suffix"))
+                + " " + totalErrors + " " + f(m("command.validate.total-errors-suffix")) + " " + totalWarnings + " " + f(m("command.validate.total-warnings-suffix")));
         if (totalErrors > 0 || totalWarnings > 0) {
-            sender.sendMessage(ChatColor.GRAY + f("Подробности:") + " /nano validate <аддон>");
+            sender.sendMessage(ChatColor.GRAY + f(m("command.validate.details-hint")) + " /nano validate <аддон>");
         }
         return true;
     }
 
     private void printValidationReport(CommandSender sender, Addon addon) {
         List<String> issues = ru.nanodev.nanoforge.manager.AddonValidator.validate(addon);
-        sender.sendMessage(ChatColor.GOLD + "★ " + f("Проверка аддона") + " '" + addon.getName() + "' ★");
+        sender.sendMessage(ChatColor.GOLD + "★ " + f(m("command.validate.report-header")) + " '" + addon.getName() + "' ★");
         for (String issue : issues) {
             if (issue.startsWith("ERROR")) {
                 sender.sendMessage(ChatColor.RED + "✖ " + issue.substring("ERROR: ".length()));
@@ -429,17 +456,17 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
     /** Плоский путь ключа (a.b.c) -> текущее значение из addon.yml, без загрузки в игру. */
     private boolean handleGet(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano get <аддон> <путь>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano get <аддон> <путь>");
             return true;
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + args[1]);
             return true;
         }
         String path = args[2];
         if (!addon.getYaml().contains(path)) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Такого пути нет:") + " " + path);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.get.path-not-found")) + " " + path);
             return true;
         }
         Object value = addon.getYaml().get(path);
@@ -456,21 +483,21 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleSet(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano set <аддон> <путь> <значение>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano set <аддон> <путь> <значение>");
             return true;
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + args[1]);
             return true;
         }
         String path = args[2];
         Object oldValue = addon.getYaml().get(path);
         if (oldValue instanceof java.util.List || oldValue instanceof ConfigurationSection) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Путь ведёт на список/секцию, а не на одно значение:")
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.set.path-is-section"))
                     + " " + path);
-            sender.sendMessage(ChatColor.GRAY + f("Списки (lore, actions и т.д.) редактируются через")
-                    + " /nano edit " + f("или напрямую в addon.yml."));
+            sender.sendMessage(ChatColor.GRAY + f(m("command.set.path-is-section-hint"))
+                    + " /nano edit " + f(m("command.set.path-is-section-hint-suffix")));
             return true;
         }
 
@@ -481,20 +508,20 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         try {
             addon.getYaml().save(addon.getFile());
         } catch (java.io.IOException e) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Не удалось сохранить addon.yml:") + " " + e.getMessage());
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.set.save-failed")) + " " + e.getMessage());
             return true;
         }
 
         sender.sendMessage(ChatColor.GREEN + "✔ " + path + ChatColor.GRAY + ": "
                 + ChatColor.WHITE + describeValue(oldValue) + ChatColor.GRAY + " -> " + ChatColor.WHITE + describeValue(newValue));
         if (addon.isEnabled()) {
-            sender.sendMessage(ChatColor.GRAY + "(" + f("применится после") + " /nano reload)");
+            sender.sendMessage(ChatColor.GRAY + "(" + f(m("command.set.reload-hint")) + " /nano reload)");
         }
         return true;
     }
 
     private static String describeValue(Object value) {
-        return value == null ? ChatColor.GRAY + "<нет>" : String.valueOf(value);
+        return value == null ? ChatColor.GRAY + m("command.no-value") : String.valueOf(value);
     }
 
     /** Пытается сохранить исходный тип значения (число/bool), если по этому пути уже что-то было. */
@@ -545,16 +572,16 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
      */
     private boolean handleDiff(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano diff <аддон>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano diff <аддон>");
             return true;
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + args[1]);
             return true;
         }
         if (!addon.getFile().exists()) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Файл на диске не найден:") + " " + addon.getFile().getPath());
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.diff.file-missing")) + " " + addon.getFile().getPath());
             return true;
         }
 
@@ -586,11 +613,11 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         }
 
         if (added.isEmpty() && removed.isEmpty() && changed.isEmpty()) {
-            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Файл на диске совпадает с тем, что сейчас в памяти - разницы нет."));
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.diff.no-changes")));
             return true;
         }
 
-        sender.sendMessage(ChatColor.GOLD + "★ " + f("Что изменится при /nano reload для") + " '" + addon.getName() + "' ★");
+        sender.sendMessage(ChatColor.GOLD + "★ " + f(m("command.diff.header")) + " '" + addon.getName() + "' ★");
         for (String key : added) {
             sender.sendMessage(ChatColor.GREEN + "+ " + key + ChatColor.GRAY + " = " + onDisk.get(key));
         }
@@ -598,69 +625,70 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(ChatColor.YELLOW + "~ " + key);
         }
         for (String key : removed) {
-            sender.sendMessage(ChatColor.RED + "- " + key + ChatColor.GRAY + " (" + f("было") + " " + inMemory.get(key) + ")");
+            sender.sendMessage(ChatColor.RED + "- " + key + ChatColor.GRAY + " (" + f(m("command.diff.was")) + " " + inMemory.get(key) + ")");
         }
         return true;
     }
 
     private boolean handleDebug(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "➤ " + f("Использование:") + " /nano debug <аддон>");
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano debug <аддон>");
             return true;
         }
         Addon addon = manager.get(args[1]);
         if (addon == null) {
-            sender.sendMessage(ChatColor.RED + "✖ " + f("Аддон не найден:") + " " + args[1]);
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + args[1]);
             return true;
         }
         boolean nowEnabled = ru.nanodev.nanoforge.util.ActionDebugger.toggle(addon.getName());
         if (nowEnabled) {
-            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Verbose-отладка ВКЛЮЧЕНА для") + " '" + addon.getName()
-                    + "' " + f("- каждый action пишется в консоль сервера."));
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.debug.enabled")) + " '" + addon.getName()
+                    + "' " + f(m("command.debug.enabled-suffix")));
         } else {
-            sender.sendMessage(ChatColor.YELLOW + "⚠ " + f("Verbose-отладка выключена для") + " '" + addon.getName() + "'.");
+            sender.sendMessage(ChatColor.YELLOW + "⚠ " + f(m("command.debug.disabled")) + " '" + addon.getName() + "'.");
         }
         return true;
     }
 
     private boolean handleList(CommandSender sender) {
-        sender.sendMessage(ChatColor.GOLD + "★ " + f("Аддоны NanoForge") + " ★");
+        sender.sendMessage(ChatColor.GOLD + "★ " + f(m("command.list.header")) + " ★");
         for (Addon a : manager.getAddons()) {
-            String status = a.isEnabled() ? ChatColor.GREEN + f("вкл") : ChatColor.RED + f("выкл");
+            String status = a.isEnabled() ? ChatColor.GREEN + f(m("command.list.enabled")) : ChatColor.RED + f(m("command.list.disabled"));
             sender.sendMessage(ChatColor.YELLOW + "• " + a.getName() + " (" + a.getType() + ", " + status + ChatColor.YELLOW + ")");
         }
         return true;
     }
 
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(ChatColor.GOLD + "★ NanoForge ★");
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano create addon <плагин> <имя> " + ChatColor.GRAY + "- " + f("новый аддон к плагину"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano create new <имя> " + ChatColor.GRAY + "- " + f("новый самостоятельный мини-плагин"));
+        sender.sendMessage(ChatColor.GOLD + m("command.help.header"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano create addon <плагин> <имя> " + ChatColor.GRAY + "- " + f(m("command.help.create-addon")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano create new <имя> " + ChatColor.GRAY + "- " + f(m("command.help.create-new")));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano enable <имя>");
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano disable <имя>");
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano list");
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano menu <аддон> <меню> " + ChatColor.GRAY + "- " + f("открыть GUI-меню аддона"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano edit <аддон> <меню> " + ChatColor.GRAY + "- " + f("редактировать меню перетаскиванием предметов"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano info <аддон> " + ChatColor.GRAY + "- " + f("подробности об аддоне"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano reload " + ChatColor.GRAY + "- " + f("перечитать все аддоны с диска"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano duplicate <аддон> <имя> " + ChatColor.GRAY + "- " + f("клонировать аддон"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano export <аддон> " + ChatColor.GRAY + "- " + f("упаковать в .zip для переноса"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano import <файл.zip> <имя> " + ChatColor.GRAY + "- " + f("импортировать из imports/"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano vars <аддон> " + ChatColor.GRAY + "- " + f("глобальные переменные аддона (отладка)"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate <аддон> " + ChatColor.GRAY + "- " + f("проверить addon.yml без загрузки"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano get <аддон> <путь> " + ChatColor.GRAY + "- " + f("посмотреть значение по пути"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano set <аддон> <путь> <значение> " + ChatColor.GRAY + "- " + f("изменить значение (Tab подставит текущее)"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate " + ChatColor.GRAY + "- " + f("проверить СРАЗУ все аддоны (без имени - полный аудит)"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano diff <аддон> " + ChatColor.GRAY + "- " + f("что изменится на диске при следующем /nano reload"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano debug <аддон> " + ChatColor.GRAY + "- " + f("вкл/выкл verbose-лог каждого action в консоль"));
-        sender.sendMessage(ChatColor.YELLOW + "➤ /nano wizard " + ChatColor.GRAY + "- " + f("GUI-мастер создания аддона (тип -> плагин -> имя в чат)"));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano menu <аддон> <меню> " + ChatColor.GRAY + "- " + f(m("command.help.menu")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano edit <аддон> <меню> " + ChatColor.GRAY + "- " + f(m("command.help.edit")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano info <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.info")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano reload " + ChatColor.GRAY + "- " + f(m("command.help.reload")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano duplicate <аддон> <имя> " + ChatColor.GRAY + "- " + f(m("command.help.duplicate")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano export <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.export")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano import <файл.zip> <имя> " + ChatColor.GRAY + "- " + f(m("command.help.import")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano vars <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.vars")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.validate")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano get <аддон> <путь> " + ChatColor.GRAY + "- " + f(m("command.help.get")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano set <аддон> <путь> <значение> " + ChatColor.GRAY + "- " + f(m("command.help.set")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano validate " + ChatColor.GRAY + "- " + f(m("command.help.validate-all")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano diff <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.diff")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano debug <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.debug")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano update " + ChatColor.GRAY + "- " + f(m("command.help.update")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano wizard " + ChatColor.GRAY + "- " + f(m("command.help.wizard")));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
-                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug", "wizard"), args[0]);
+                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug", "update", "wizard"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {

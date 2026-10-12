@@ -5,6 +5,7 @@ import ru.nanodev.nanoforge.manager.AddonManager;
 import ru.nanodev.nanoforge.command.NanoCommand;
 import ru.nanodev.nanoforge.gui.MenuManager;
 import ru.nanodev.nanoforge.metrics.Metrics;
+import ru.nanodev.nanoforge.update.UpdateChecker;
 import ru.nanodev.nanoforge.util.StartupChecks;
 
 import java.io.File;
@@ -21,6 +22,9 @@ public class NanoForgePlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+
+        saveDefaultConfig();
+        ru.nanodev.nanoforge.util.Messages.init(this);
 
         StartupChecks.printBanner(this);
         StartupChecks.checkServerVersion(this);
@@ -57,7 +61,25 @@ public class NanoForgePlugin extends JavaPlugin {
             ru.nanodev.nanoforge.integration.NanoForgeExpansion.tryRegister(this);
         }
 
-        getLogger().info("NanoForge запущен. Загружено аддонов: " + addonManager.getAddons().size());
+        getLogger().info(ru.nanodev.nanoforge.util.Messages.get("plugin.enabled-log", "count", addonManager.getAddons().size()));
+
+        if (getConfig().getBoolean("update-checker.enabled", true)) {
+            boolean notifyConsole = getConfig().getBoolean("update-checker.notify-console", true);
+            UpdateChecker.checkAsync(this, result -> {
+                // "Установлена актуальная версия" не является предупреждением - печатаем
+                // его в консоль только если notify-console явно включён (по умолчанию да);
+                // находка реальной новой версии (или сетевая ошибка) печатается внутри
+                // UpdateChecker.performCheck() через log.warning/log.info независимо от этого флага.
+                if (notifyConsole) {
+                    getLogger().info(ru.nanodev.nanoforge.util.Messages.get("plugin.autoupdate-log", "result", result));
+                }
+            });
+        }
+    }
+
+    /** Ручной запуск той же проверки - используется командой /nano update. */
+    public void checkForUpdates(java.util.function.Consumer<String> resultMessage) {
+        UpdateChecker.checkAsync(this, resultMessage);
     }
 
     private void setupMetrics() {

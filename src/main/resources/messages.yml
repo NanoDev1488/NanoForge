@@ -1,0 +1,271 @@
+# Все сообщения плагина NanoForge (игроку/админу в чат, админу в консоль) -
+# собраны здесь единым файлом, чтобы можно было поменять текст/цвета без
+# пересборки плагина. Поддерживаются цветовые коды вида &a/&c/&6 (их
+# транслирует ru.nanodev.nanoforge.util.Messages через
+# ChatColor.translateAlternateColorCodes('&', ...)), а также плейсхолдеры
+# вида {name}, которые подставляются тем же классом.
+#
+# ВАЖНО: это сообщения САМОГО ПЛАГИНА (его Java-код). Текст, который автор
+# аддона пишет в своём addon.yml (actions message/broadcast/console,
+# deny_message и т.п.), здесь НЕ хранится и не должен - это контент аддона,
+# а не плагина.
+#
+# Правки этого файла подхватываются без перезапуска сервера командой
+# /nano reload (см. ru.nanodev.nanoforge.util.Messages#reload).
+
+# NanoCommand оформляет свои сообщения через FancyFont.stylize() (обёртка f(...) в
+# самом классе) - стилизуется только "голый" текст без цветовых кодов/символов/
+# плейсхолдеров переменных, а цвет (ChatColor.*), символ-декорация (★ ➤ • ✔ ✖ ⚠) и
+# сами переменные (имена аддонов, пути и т.п.) остаются в Java-коде КАК БЫЛО и
+# собираются вокруг строки отсюда - поэтому ниже лежит ЧИСТЫЙ текст без &-кодов,
+# ровно тот же, что раньше передавался в f("...") напрямую.
+command:
+  no-permission: "Нет прав."
+  usage-label: "Использование:"
+  addon-not-found: "Аддон не найден:"
+  already-exists: "уже существует."
+  wizard:
+    only-player: "Визард можно запустить только игроку."
+  duplicate:
+    name-label: "Аддон с именем"
+    failed: "Не удалось создать копию."
+    created: "Создана копия"
+    created-suffix: "(выключена, включи вручную)."
+  export:
+    exported: "Аддон экспортирован:"
+    failed: "Ошибка экспорта:"
+  vars:
+    header: "Глобальные переменные"
+    empty: "(пусто)"
+  import:
+    usage-hint: "Файл должен лежать в"
+    name-label: "Аддон с именем"
+    imported: "Аддон импортирован как"
+    imported-suffix: "(выключен, проверь и включи вручную)."
+    failed: "Ошибка импорта:"
+  reload:
+    success: "NanoForge: все аддоны перезагружены с диска"
+    unit: "шт."
+  update:
+    checking: "Проверяю обновления на GitHub..."
+    result: "Обновление:"
+  info:
+    type-label: "Тип:"
+    target-not-installed: "не установлен на сервере"
+    target-disabled: "установлен, но ВЫКЛЮЧЕН"
+    target-active: "активен"
+    target-label: "Целевой плагин:"
+    enable-button-label: "Включить"
+    enable-button-hover: "Кликни, чтобы включить через PlugMan"
+    status-label: "Статус:"
+    status-enabled: "включён"
+    status-disabled: "выключен"
+    commands-label: "Команды:"
+    events-label: "События:"
+    menus-label: "Меню:"
+    folder-label: "Папка:"
+  menu:
+    player-only: "Меню можно открыть только игроку."
+    edit-mode-hint: "Режим редактирования: перетаскивай предметы в слоты - они станут иконками кнопок. Закрой меню, чтобы сохранить."
+  create:
+    bad-kind: "Второй аргумент должен быть 'addon' или 'new'."
+    target-missing-warning: "Внимание: плагин"
+    target-missing-warning-suffix: "сейчас не найден на сервере, но файл всё равно создам."
+    addon-name-label: "Аддон с именем"
+    created-addon: "Создан аддон"
+    created-for: "для плагина"
+    edit-hint: "Редактируй:"
+    target-api-hint: "Список классов/методов"
+    enable-hint: "Включить:"
+    plugin-name-label: "Плагин с именем"
+    created-new: "Создан новый мини-плагин"
+  toggle:
+    not-found: "Не найдено:"
+    enabled: "Включено:"
+    disabled: "Выключено:"
+    failed: "Не удалось выполнить операцию для:"
+    cannot-enable: "Не удалось включить"
+    plugin-label: "плагин"
+    target-not-installed: "не установлен на сервере."
+    target-disabled: "установлен, но сейчас ВЫКЛЮЧЕН."
+    enable-from-here: "Можно включить прямо отсюда:"
+    enable-button-label: "Включить"
+    enable-button-hover: "Кликни, чтобы выполнить:"
+    retry-hint: "после включения запусти"
+    retry-hint-suffix: "ещё раз"
+    unknown-reason: "по неизвестной причине - смотри консоль."
+  validate:
+    no-addons: "Аддонов пока нет."
+    errors-suffix: "ошибок"
+    warnings-suffix: "предупреждений"
+    ok: "ок"
+    total-label: "Итого:"
+    total-addons-suffix: "аддонов,"
+    total-errors-suffix: "ошибок,"
+    total-warnings-suffix: "предупреждений."
+    details-hint: "Подробности:"
+    report-header: "Проверка аддона"
+  set:
+    path-is-section: "Путь ведёт на список/секцию, а не на одно значение:"
+    path-is-section-hint: "Списки (lore, actions и т.д.) редактируются через"
+    path-is-section-hint-suffix: "или напрямую в addon.yml."
+    save-failed: "Не удалось сохранить addon.yml:"
+    reload-hint: "применится после"
+  no-value: "<нет>"
+  get:
+    path-not-found: "Такого пути нет:"
+  diff:
+    file-missing: "Файл на диске не найден:"
+    no-changes: "Файл на диске совпадает с тем, что сейчас в памяти - разницы нет."
+    header: "Что изменится при /nano reload для"
+    was: "было"
+  debug:
+    enabled: "Verbose-отладка ВКЛЮЧЕНА для"
+    enabled-suffix: "- каждый action пишется в консоль сервера."
+    disabled: "Verbose-отладка выключена для"
+  list:
+    header: "Аддоны NanoForge"
+    enabled: "вкл"
+    disabled: "выкл"
+  help:
+    header: "★ NanoForge ★"
+    create-addon: "новый аддон к плагину"
+    create-new: "новый самостоятельный мини-плагин"
+    menu: "открыть GUI-меню аддона"
+    edit: "редактировать меню перетаскиванием предметов"
+    info: "подробности об аддоне"
+    reload: "перечитать все аддоны с диска"
+    duplicate: "клонировать аддон"
+    export: "упаковать в .zip для переноса"
+    import: "импортировать из imports/"
+    vars: "глобальные переменные аддона (отладка)"
+    validate: "проверить addon.yml без загрузки"
+    get: "посмотреть значение по пути"
+    set: "изменить значение (Tab подставит текущее)"
+    validate-all: "проверить СРАЗУ все аддоны (без имени - полный аудит)"
+    diff: "что изменится на диске при следующем /nano reload"
+    debug: "вкл/выкл verbose-лог каждого action в консоль"
+    update: "проверить GitHub на новую версию и скачать её (применится при рестарте)"
+    wizard: "GUI-мастер создания аддона (тип -> плагин -> имя в чат)"
+
+wizard:
+  cancel:
+    title: "&f&cОтмена"
+    toast: "&7Отменено."
+  prompt:
+    title-addon: "&d★ &rАддон к плагину '{target}' ★"
+    title-new: "&d★ &rМини-плагин ★"
+    hint: "&7Напиши в чат ИМЯ (без пробелов) - или 'cancel' для отмены."
+  name:
+    cancelled: "&7Отменено, ничего не создано."
+    invalid: "&c✖ Имя не должно быть пустым и не должно содержать пробелы/слэши. Начни заново: /nano wizard"
+    taken: "&c✖ Аддон с именем '{name}' уже существует. Начни заново с другим именем: /nano wizard"
+  done:
+    created: "&a✔ Создано: {addon}&7 ({kind})"
+    edit-hint: "&e➤ /nano edit {addon} main &7- настроить пример-меню"
+    enable-hint: "&e➤ /nano enable {addon} &7- включить, когда будет готов"
+
+# MenuManager так же, как NanoCommand, оформляет текст через f(...) (FancyFont.stylize) -
+# ниже только ЧИСТЫЙ текст без цветов/символов, цвет и декорации остаются в Java.
+menu:
+  addon-not-found: "Аддон не найден:"
+  menu-not-found-part1: "Меню"
+  menu-not-found-part2: "не найдено у аддона"
+  action-error: "Ошибка при выполнении кнопки меню."
+  saved: "Меню"
+  saved-suffix: "сохранено."
+  edit:
+    header: "Правка действий для слота"
+    intro: "Пиши в чат ПО ОДНОЙ строке-действию за раз - можно сколько угодно подряд:"
+    dsl-line1: "&emessage <текст>&7 | &ebroadcast <текст>&7 | &econsole <команда>"
+    dsl-line2: "&ecall <плагин> <метод> [аргументы]&7 | &eopenmenu <меню> [аддон]&7 | &eclosemenu"
+    dsl-line3: "&esetvar <ключ> <значение> [global]&7 | &eaddvar <ключ> <число> [global]&7 | &eeco_give/eco_take <число>"
+    append-hint: "Каждая строка добавляется К СПИСКУ (не заменяет предыдущие)."
+    save-hint-done: "сохранить и закончить"
+    save-hint-undo: "убрать последнюю добавленную строку"
+    cancel-hint: "отменить всё и ничего не менять."
+    cancelled: "Отменено, ничего не изменилось."
+    undo-empty: "Список пуст, нечего отменять."
+    undo-done: "Убрана последняя строка. Сейчас в списке:"
+    parse-failed: "Не удалось разобрать:"
+    parse-failed-hint: "Строка не добавлена, сессия продолжается - попробуй ещё раз."
+    added: "Добавлено"
+    continue-hint-part1: "Пиши следующую строку, либо"
+    continue-hint-part2: "чтобы сохранить."
+    nothing-collected: "Ни одной строки не добавлено - ничего не сохранено."
+    addon-gone: "Аддон"
+    addon-gone-suffix: "больше не существует."
+    save-success-part1: "Сохранено"
+    save-success-part2: "действие(й) для слота"
+    save-failed: "Не удалось сохранить:"
+  error:
+    generated-item: "[NanoForge] Ошибка в сгенерированном пункте меню аддона '{addon}': {error}"
+    menu-item: "[NanoForge] Ошибка в меню аддона '{addon}': {error}"
+    save-failed: "[NanoForge] Не удалось сохранить меню при редактировании: {error}"
+
+dynamic:
+  # DynamicCommand прогоняет текст через FancyFont.stylize() напрямую (как и f() в
+  # NanoCommand/MenuManager) - здесь поэтому только чистый текст без §-кодов и символа ✖,
+  # они остаются в Java и собираются вокруг строки отсюда, как было раньше.
+  command:
+    disabled: "Этот аддон сейчас выключен."
+    no-permission: "У тебя нет права:"
+    error: "Ошибка при выполнении команды аддона"
+    error-log: "[NanoForge] Ошибка в команде аддона '{addon}' ({command}): {error}"
+  listener:
+    class-not-found: "[NanoForge] Не найден класс события: {event} (аддон {addon})"
+    error-log: "[NanoForge] Аддон '{addon}': ошибка при обработке события {event}: {error}"
+
+storage:
+  save-failed: "[NanoForge] Не удалось сохранить storage.yml: {error}"
+
+manager:
+  load-failed: "[NanoForge] Не удалось загрузить аддон из папки '{folder}': {error} (проверь синтаксис addon.yml)"
+  target-missing: "[NanoForge] Аддон '{addon}': плагин '{target}' пока не найден на сервере (возможно, ещё не загрузился). Если он реально не установлен - action'ы 'call' у этого аддона просто ничего не будут делать."
+  target-disabled: "[NanoForge] Аддон '{addon}': плагин '{target}' установлен, но выключен. Включи его (например, через PlugMan) и перезапусти аддон через /nano reload или /nano enable {addon}"
+  api-dump-saved: "[NanoForge] Дамп API '{target}' сохранён в {path}"
+  api-dump-skipped: "[NanoForge] Плагин '{target}' не активен - дамп API не создан (можно сделать позже, пере создав аддон)."
+  enable-blocked-target: "[NanoForge] Аддон '{addon}' НЕ включён: плагин '{target}' {reason} на сервере."
+  enable-blocked-target-not-found: "не найден"
+  enable-blocked-target-disabled: "выключен"
+  enable-blocked-requires: "[NanoForge] Аддон '{addon}' НЕ включён: требует включённых аддонов {missing} (см. 'requires:' в addon.yml)."
+  requires-warning: "[NanoForge] Аддон '{addon}' требует аддонов {missing} ('requires:' в addon.yml) - они пока не включены. Если после полной загрузки сервера это не исправится само - проверь порядок и включи их, потом сделай /nano reload."
+  enabled-log: "[NanoForge] Включён: {addon}"
+  disabled-log: "[NanoForge] Выключен: {addon}"
+  command-map-failed: "[NanoForge] Не удалось получить CommandMap: {error}"
+  import:
+    file-not-found: "файл не найден: plugins/NanoForge/imports/{file}"
+    no-addon-yml: "в архиве нет addon.yml - это не экспорт NanoForge?"
+
+placeholderapi:
+  registered: "[NanoForge] Экспансия PlaceholderAPI зарегистрирована: %nanoforge_<аддон>_<ключ>%"
+  register-failed: "[NanoForge] Не удалось зарегистрировать экспансию PlaceholderAPI: {error}"
+
+plugin:
+  enabled-log: "NanoForge запущен. Загружено аддонов: {count}"
+  autoupdate-log: "[AutoUpdate] {result}"
+
+engine:
+  debug:
+    skipped: "[NanoForge-debug] {addon}: action '{type}' ПРОПУЩЕН (условие if не прошло)"
+    running: "[NanoForge-debug] {addon}: action '{type}' выполняется{player}"
+  console:
+    rate-limit-exceeded: "[NanoForge] console: превышен лимит {max} команд/сек - пропускаю (проверь addon.yml на зацикливание): {command}"
+  sound-stop:
+    unknown-sound: "[NanoForge] sound_stop: неизвестный звук '{sound}'"
+  discord-webhook:
+    missing-url: "[NanoForge] discord_webhook: не указан 'url'"
+    bad-response: "[NanoForge] discord_webhook: сервер Discord ответил кодом {code}"
+    send-failed: "[NanoForge] discord_webhook: не удалось отправить: {error}"
+  give-item:
+    unknown-material: "[NanoForge] give_item: неизвестный материал '{material}'"
+  play-sound:
+    unknown-sound: "[NanoForge] play_sound: неизвестный звук '{sound}'"
+  particle:
+    unknown-particle: "[NanoForge] particle: неизвестная частица '{particle}'"
+  teleport:
+    world-not-found: "[NanoForge] teleport: мир не найден"
+  unknown-action-type: "[NanoForge] Неизвестный тип действия: {type}"
+  action-error: "[NanoForge] Аддон '{addon}': ошибка в action ({type}): {error}"
+
+# by t.me/NanoDev_mc
