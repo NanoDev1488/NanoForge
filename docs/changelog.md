@@ -2,15 +2,32 @@
 
 <div align="center">
 
-<img src="https://img.shields.io/badge/Версия-v1.6.0-00FF9C?style=for-the-badge&logoColor=black" alt="Version 1.6.0"/>
-<img src="https://img.shields.io/badge/Тесты-255%2F255%20Passing-2c5364?style=for-the-badge" alt="Tests"/>
+<img src="https://img.shields.io/badge/Версия-v1.6.1-00FF9C?style=for-the-badge&logoColor=black" alt="Version 1.6.1"/>
+<img src="https://img.shields.io/badge/Тесты-274%2F274%20Passing-2c5364?style=for-the-badge" alt="Tests"/>
 <img src="https://img.shields.io/badge/Статус-Release-2c5364?style=for-the-badge" alt="Status"/>
 
 </div>
 
 ---
 
-## 🌟 Версия 1.6.0 *(Текущая)*
+## 🌟 Версия 1.6.1 *(Текущая)*
+
+### 🔄 Автообновление с GitHub Releases
+* **Умный фоновый апдейтер:** при запуске сервера плагин асинхронно проверяет релизы в репозитории `NanoDev1488/NanoForge` и скачивает свежий jar в стандартную папку `plugins/update/`.
+* При следующем перезапуске сервера ядро Bukkit автоматически и безопасно заменяет старый jar новым до загрузки плагинов.
+* Команда `/nano update` — проверка и скачивание обновления вручную прямо из игры.
+* Настройки в `config.yml`: `update-checker.enabled` и `update-checker.notify-console`.
+
+### 💬 Полная локализация и кастомизация: `messages.yml`
+* Все сообщения плагина вынесены из Java-кода в `plugins/NanoForge/messages.yml`.
+* Поддержка цветовых кодов `&`, плейсхолдеров и горячая перезагрузка текстов через `/nano reload` без перезагрузки сервера.
+
+### 🧪 Тесты и надёжность
+* Добавлены тесты `UpdateCheckerTest` и `MessagesTest`. Полный тестовый стек: **274/274 тестов**.
+
+---
+
+## 🧙 Версия 1.6.0
 
 ### 🧙 Интерактивный GUI-визард (`/nano wizard`)
 * **Создание аддона кликами:** Теперь не нужно печатать команды вручную или править YAML с нуля:
