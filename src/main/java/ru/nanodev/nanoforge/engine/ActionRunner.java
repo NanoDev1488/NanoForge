@@ -366,6 +366,8 @@ public class ActionRunner {
                         Bukkit.getScheduler().runTaskLater(ru.nanodev.nanoforge.NanoForgePlugin.get(),
                                 () -> ActionRunner.run(nestedActions, fSender, fEvent, fMenuManager, fAddon, fArgs),
                                 ticks);
+                        break;
+                    }
                     case "potion_effect": {
                         if (player == null) break;
                         String effectName = String.valueOf(action.getOrDefault("effect", "SPEED")).toUpperCase();
