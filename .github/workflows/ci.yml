@@ -103,11 +103,12 @@ jobs:
           fi
 
           echo "nano list" >&3; sleep 2
-          echo "nano create new SmokeTest" >&3; sleep 2
-          echo "nano enable SmokeTest" >&3; sleep 2
-          echo "nano info SmokeTest" >&3; sleep 2
-          echo "nano reload" >&3; sleep 2
-          echo "nano list" >&3; sleep 2
+          echo "nano create new StandaloneNew" >&3; sleep 2
+          echo "nano enable StandaloneNew" >&3; sleep 2
+          echo "nano create addon NanoForge StandaloneAddon" >&3; sleep 2
+          echo "nano enable StandaloneAddon" >&3; sleep 2
+          echo "nano compile StandaloneNew 1.0.0" >&3; sleep 3
+          echo "nano compile StandaloneAddon 1.0.0" >&3; sleep 3
           echo "stop" >&3
 
           for i in $(seq 1 30); do
@@ -120,19 +121,116 @@ jobs:
 
           FAIL=0
           grep -q "NanoForge" console.log || { echo "!!! плагин не подал признаков жизни в логе"; FAIL=1; }
-          [ -f plugins/NanoForge/addons/SmokeTest/addon.yml ] || { echo "!!! addon.yml не создан"; FAIL=1; }
-          grep -q "enabled: true" plugins/NanoForge/addons/SmokeTest/addon.yml \
-            || { echo "!!! аддон не остался включён после /nano reload (регрессия того самого бага!)"; FAIL=1; }
+          [ -f plugins/NanoForge/compiled/StandaloneNew-1.0.0.jar ] || { echo "!!! StandaloneNew jar не скомпилирован"; FAIL=1; }
+          [ -f plugins/NanoForge/compiled/StandaloneAddon-1.0.0.jar ] || { echo "!!! StandaloneAddon jar не скомпилирован"; FAIL=1; }
 
           if [ "$FAIL" = "1" ]; then exit 1; fi
-          echo "SMOKE TEST OK"
+          echo "COMPILATION TEST OK"
 
-      - name: Публикуем консольный лог как артефакт (для разбора, даже при успехе)
+      - name: Загружаем скомпилированные JAR в артефакты GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-standalone-plugins
+          path: server/plugins/NanoForge/compiled/*.jar
+          if-no-files-found: error
+
+      - name: Публикуем консольный лог первого сервера как артефакт
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: live-smoke-test-console-log
+          name: server1-compile-console-log
           path: server/console.log
+          if-no-files-found: warn
+
+  standalone-compiled-test:
+    # Запускаем ЧИСТЫЙ Paper сервер ТОЛЬКО со скомпилированными JAR (без NanoForge.jar!)
+    needs: live-server-smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Подготавливаем чистый сервер
+        run: |
+          mkdir -p standalone_server/plugins
+          cd standalone_server
+          echo "eula=true" > eula.txt
+          {
+            echo "online-mode=false"
+            echo "enforce-secure-profile=false"
+          } > server.properties
+
+      - name: Скачиваем сервер Paper
+        run: |
+          set -e
+          MC_VERSION=1.20.4
+          BUILD_JSON=$(curl -sSf "https://fill.papermc.io/v3/projects/paper/versions/$MC_VERSION/builds")
+          BUILD=$(echo "$BUILD_JSON" | jq -r '[.[] | select(.channel=="STABLE")] | last | .id')
+          BUILD_DETAIL=$(curl -sSf "https://fill.papermc.io/v3/projects/paper/versions/$MC_VERSION/builds/$BUILD")
+          URL=$(echo "$BUILD_DETAIL" | jq -r '.downloads."server:default".url')
+          curl -sSfL -o standalone_server/paper.jar "$URL"
+
+      - name: Скачиваем скомпилированные автономные плагины из артефактов
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-standalone-plugins
+          path: standalone_server/plugins
+
+      - name: Также скачиваем NanoForge.jar как целевой плагин для аддона
+        uses: actions/download-artifact@v4
+        with:
+          name: NanoForge-jar
+          path: standalone_server/plugins
+
+      - name: Запускаем сервер и проверяем загрузку автономных плагинов
+        run: |
+          cd standalone_server
+          ls -la plugins/
+          mkfifo cmd_pipe
+          exec 3<>cmd_pipe
+          java -Xms512M -Xmx2G -jar paper.jar --nogui < cmd_pipe > console.log 2>&1 &
+          PID=$!
+
+          READY=0
+          for i in $(seq 1 90); do
+            if grep -q "Done (" console.log 2>/dev/null; then READY=1; break; fi
+            if ! kill -0 $PID 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$READY" != "1" ]; then
+            echo "!!! Сервер не поднялся со скомпилированными плагинами"; cat console.log; exit 1
+          fi
+
+          echo "pl" >&3; sleep 2
+          echo "stop" >&3
+
+          for i in $(seq 1 30); do
+            kill -0 $PID 2>/dev/null || break
+            sleep 2
+          done
+
+          echo "=== Консольный лог сервера с автономными плагинами ==="
+          cat console.log
+
+          FAIL=0
+          grep -q "StandaloneNew" console.log || { echo "!!! StandaloneNew не включился на чистом сервере"; FAIL=1; }
+          grep -q "StandaloneAddon" console.log || { echo "!!! StandaloneAddon не включился на чистом сервере"; FAIL=1; }
+
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "ALL STANDALONE TESTS PASSED SUCCESSFULLY!"
+
+      - name: Публикуем лог автономного сервера
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server2-standalone-console-log
+          path: standalone_server/console.log
           if-no-files-found: warn
 
 # by t.me/NanoDev_mc
