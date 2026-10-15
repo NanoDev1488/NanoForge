@@ -143,6 +143,18 @@ public class Addon {
         return yaml.getConfigurationSection("menus." + menuKey + ".items");
     }
 
+    // ---------- библиотеки (libraries) ----------
+
+    public List<String> getLibraries() {
+        return yaml.getStringList("libraries");
+    }
+
+    // ---------- база данных (database) ----------
+
+    public org.bukkit.configuration.ConfigurationSection getDatabaseSection() {
+        return yaml.getConfigurationSection("database");
+    }
+
     public YamlConfiguration getYaml() {
         return yaml;
     }

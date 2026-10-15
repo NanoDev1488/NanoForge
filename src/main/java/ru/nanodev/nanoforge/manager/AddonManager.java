@@ -374,10 +374,13 @@ public class AddonManager {
         // там же для выключенного-но-установленного плагина предлагается кнопка PlugMan).
         if (addon.getType() == Addon.Type.ADDON && addon.getTargetPlugin() != null) {
             org.bukkit.plugin.Plugin target = Bukkit.getPluginManager().getPlugin(addon.getTargetPlugin());
-            if (target == null || !target.isEnabled()) {
-                String reason = target == null
-                        ? ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-target-not-found")
-                        : ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-target-disabled");
+            if (target == null) {
+                // Если плагина нет на сервере: создаём и регистрируем встроенный глобальный виртуальный плагин
+                plugin.getLogger().warning("[NanoForge] Target plugin '" + addon.getTargetPlugin() + "' for addon '" + addon.getName() + "' is not present on server. Providing embedded virtual plugin instance.");
+                VirtualAddonPlugin embeddedTarget = new VirtualAddonPlugin(addon.getTargetPlugin(), "1.0.0", "Embedded target plugin provided by NanoForge for " + addon.getName());
+                VirtualPluginRegistrar.register(embeddedTarget);
+            } else if (!target.isEnabled()) {
+                String reason = ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-target-disabled");
                 plugin.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("manager.enable-blocked-target",
                         "addon", addon.getName(), "target", addon.getTargetPlugin(), "reason", reason));
                 addon.setEnabled(false);
@@ -434,6 +437,11 @@ public class AddonManager {
         // причине для этого имени уже что-то зарегистрировано (листенер/команды),
         // сначала аккуратно снимаем старое, чтобы не задвоить регистрацию в Bukkit.
         cleanupRegistrations(addon.getName());
+
+        // библиотеки (libraries)
+        if (plugin.getLibraryManager() != null && !addon.getLibraries().isEmpty()) {
+            plugin.getLibraryManager().loadLibraries(addon.getLibraries());
+        }
 
         // события
         DynamicListener listener = new DynamicListener(plugin);

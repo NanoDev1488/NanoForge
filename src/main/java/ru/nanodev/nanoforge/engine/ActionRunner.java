@@ -427,6 +427,66 @@ public class ActionRunner {
                         }
                         break;
                     }
+                    case "db_execute": {
+                        if (currentAddon == null) break;
+                        org.bukkit.configuration.ConfigurationSection dbSec = currentAddon.getDatabaseSection();
+                        if (dbSec == null) {
+                            Bukkit.getLogger().warning("[NanoForge] Addon " + currentAddon.getName() + " has no 'database:' section configured.");
+                            break;
+                        }
+                        String sql = PlaceholderUtil.apply(String.valueOf(action.getOrDefault("sql", "")), player, commandArgs);
+                        List<Object> params = new ArrayList<>();
+                        Object rawParams = action.get("params");
+                        if (rawParams instanceof List) {
+                            for (Object p : (List<?>) rawParams) {
+                                params.add(PlaceholderUtil.apply(String.valueOf(p), player, commandArgs));
+                            }
+                        }
+                        ru.nanodev.nanoforge.database.DatabaseManager db = new ru.nanodev.nanoforge.database.DatabaseManager(currentAddon.getFile().getParentFile(), dbSec);
+                        int affected = db.executeUpdate(sql, params);
+                        lastCallResult[0] = affected;
+                        if (action.containsKey("save_as")) {
+                            String varKey = String.valueOf(action.get("save_as"));
+                            boolean global = "global".equalsIgnoreCase(String.valueOf(action.get("scope")));
+                            if (global || player == null) {
+                                currentAddon.getStorage().setGlobal(varKey, String.valueOf(affected));
+                            } else {
+                                currentAddon.getStorage().set(player, varKey, String.valueOf(affected));
+                            }
+                        }
+                        break;
+                    }
+                    case "db_query": {
+                        if (currentAddon == null) break;
+                        org.bukkit.configuration.ConfigurationSection dbSec = currentAddon.getDatabaseSection();
+                        if (dbSec == null) {
+                            Bukkit.getLogger().warning("[NanoForge] Addon " + currentAddon.getName() + " has no 'database:' section configured.");
+                            break;
+                        }
+                        String sql = PlaceholderUtil.apply(String.valueOf(action.getOrDefault("sql", "")), player, commandArgs);
+                        List<Object> params = new ArrayList<>();
+                        Object rawParams = action.get("params");
+                        if (rawParams instanceof List) {
+                            for (Object p : (List<?>) rawParams) {
+                                params.add(PlaceholderUtil.apply(String.valueOf(p), player, commandArgs));
+                            }
+                        }
+                        ru.nanodev.nanoforge.database.DatabaseManager db = new ru.nanodev.nanoforge.database.DatabaseManager(currentAddon.getFile().getParentFile(), dbSec);
+                        List<Map<String, Object>> rows = db.executeQuery(sql, params);
+                        Object resultVal = rows.isEmpty() ? null : (rows.get(0).values().isEmpty() ? null : rows.get(0).values().iterator().next());
+                        lastCallResult[0] = resultVal;
+                        if (action.containsKey("save_as")) {
+                            String varKey = String.valueOf(action.get("save_as"));
+                            boolean global = "global".equalsIgnoreCase(String.valueOf(action.get("scope")));
+                            String saveStr = resultVal == null ? "" : String.valueOf(resultVal);
+                            if (global || player == null) {
+                                currentAddon.getStorage().setGlobal(varKey, saveStr);
+                            } else {
+                                currentAddon.getStorage().set(player, varKey, saveStr);
+                            }
+                        }
+                        break;
+                    }
                     default:
                         Bukkit.getLogger().warning(ru.nanodev.nanoforge.util.Messages.get("engine.unknown-action-type", "type", type));
                 }

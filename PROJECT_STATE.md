@@ -6,22 +6,17 @@
 - **Модель аддонов:** YAML (`addon.yml`) -> динамическая регистрация в Bukkit `CommandMap`, `HandlerList` и виртуальный `PluginBase` в `SimplePluginManager`.
 - **Хранилище:** `storage.yml` (персистентные переменные и кулдауны), `backups/` (автобэкапы).
 
-## Текущая версия: 1.7.0
-### Реализовано в 1.7.0:
-1. **Виртуальные плагины:** Аддоны регистрируются как `NanoForge-<AddonName>` в `SimplePluginManager` (`VirtualAddonPlugin` + `VirtualPluginRegistrar`). Появляются в `/plugins` и доступны через `Bukkit.getPluginManager().getPlugin(...)`.
-2. **Тумблер в config.yml:** `register-addons-as-plugins: true` (можно отключить регистрацию).
-3. **Фоновые задачи (`tasks:`):** Запуск действий по таймеру с `interval` и `delay` в тиках, автоматическая отмена при выключении/перезагрузке аддона.
-4. **Команды:** Поддержка `aliases: [...]` и `tab_complete: [...]` в `commands.<name>`.
-5. **Новые условия `if:`:** `gamemode`, `sneak: true/false`, `level_at_least`, `food_at_least`, `health_at_least`, `papi_compare: { placeholder, op, value }`.
-6. **Новые действия `actions`:** `potion_effect`, `heal`, `feed`, `lightning`.
-7. **Рефлексия:** Поддержка цепочек методов через точку в `ReflectionBridge` (`chain` / `method.call`).
-8. **Источники списков GUI:** `source: addons` и `source: plugins` в меню.
-9. **Фиксы:** Исправлен баг с плейсхолдерами `{maxplayers}` / `{MAXPLAYERS}` и `{online}` / `{online_players}`.
+## Текущая версия: 1.8.0
+### Реализовано в 1.8.0:
+1. **YAML-to-JAR компилятор (`/nano compile <аддон> [версия]`):** Автономная компиляция аддона/мини-плагина в полноценный `.jar` с манифестом, `plugin.yml` и встроенным Bootstrapper. Автоматически добавляет `depend: [<плагин>]` в `plugin.yml` при сборке аддона.
+2. **Динамический загрузчик библиотек (`LibraryManager`):** Секция `libraries:` в `addon.yml` с координатами Maven Central, скачивание в `plugins/NanoForge/libraries/` и инжект в ClassLoader.
+3. **Поддержка баз данных (`DatabaseManager`):** Секция `database:` (SQLite и MySQL) и действия `type: db_execute` / `type: db_query` с параметризацией и плейсхолдерами.
+4. **Виртуальные подстановки плагинов:** При отсутствии стороннего целевого плагина на сервере NanoForge активирует встроенный виртуальный экземпляр этого плагина, предотвращая падение аддона.
+5. **CI на push:** Включение автоматического запуска тестов и сборки GitHub Actions на каждый `push` в ветки master и main.
 
-## Запланировано на v1.8.0:
-- YAML-to-JAR компилятор (`addon.yml` -> полноценный `.jar` автономного плагина).
-- Базы данных: поддержка SQL (MySQL/PostgreSQL) и SQLite для аддонов.
-- Расширенная работа с NBT и кастомными сущностями.
+## Запланировано на v1.9.0:
+- Расширенная работа с NBT и кастомными сущностями/предметами.
+- Webhook-сервер для приёма внешних HTTP-запросов в аддоны.
 
 ## Правила сборки и окружения
 - Windows 10, только cmd (`cmd /c ...`). PowerShell ЗАПРЕЩЁН.

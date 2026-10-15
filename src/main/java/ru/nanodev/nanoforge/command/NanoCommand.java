@@ -105,6 +105,8 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleDebug(sender, args);
             case "update":
                 return handleUpdate(sender);
+            case "compile":
+                return handleCompile(sender, args);
             case "wizard":
                 if (!(sender instanceof Player)) {
                     sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.wizard.only-player")));
@@ -158,6 +160,29 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(ChatColor.GREEN + "✔ " + f(m("command.export.exported")) + " " + zip.getPath());
         } catch (java.io.IOException e) {
             sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.export.failed")) + " " + e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleCompile(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano compile <аддон> [версия]");
+            return true;
+        }
+        String name = args[1];
+        Addon addon = manager.get(name);
+        if (addon == null) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.addon-not-found")) + " " + name);
+            return true;
+        }
+        String version = args.length > 2 ? args[2] : "1.0.0";
+        File compiledFolder = new File(plugin.getDataFolder(), "compiled");
+        try {
+            File jar = ru.nanodev.nanoforge.compiler.AddonCompiler.compileToJar(addon, compiledFolder, version);
+            sender.sendMessage(ChatColor.GREEN + "✔ " + f("Аддон успешно скомпилирован в автономный JAR:"));
+            sender.sendMessage(ChatColor.YELLOW + "  " + jar.getAbsolutePath());
+        } catch (Exception e) {
+            sender.sendMessage(ChatColor.RED + "✖ " + f("Ошибка компиляции: ") + e.getMessage());
         }
         return true;
     }
@@ -681,6 +706,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano diff <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.diff")));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano debug <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.debug")));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano update " + ChatColor.GRAY + "- " + f(m("command.help.update")));
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano compile <аддон> [версия] " + ChatColor.GRAY + "- Скомпилировать в .jar");
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano wizard " + ChatColor.GRAY + "- " + f(m("command.help.wizard")));
     }
 
@@ -688,7 +714,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
-                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug", "update", "wizard"), args[0]);
+                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug", "update", "compile", "wizard"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
@@ -699,7 +725,7 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 || args[0].equalsIgnoreCase("menu") || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info")
                 || args[0].equalsIgnoreCase("duplicate") || args[0].equalsIgnoreCase("export") || args[0].equalsIgnoreCase("vars")
                 || args[0].equalsIgnoreCase("validate") || args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("set")
-                || args[0].equalsIgnoreCase("diff") || args[0].equalsIgnoreCase("debug"))) {
+                || args[0].equalsIgnoreCase("diff") || args[0].equalsIgnoreCase("debug") || args[0].equalsIgnoreCase("compile"))) {
             return filter(manager.getAddonNames(), args[1]);
         }
 

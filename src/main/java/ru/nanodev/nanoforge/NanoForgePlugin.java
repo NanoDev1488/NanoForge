@@ -17,6 +17,7 @@ public class NanoForgePlugin extends JavaPlugin {
     private static NanoForgePlugin instance;
     private AddonManager addonManager;
     private MenuManager menuManager;
+    private ru.nanodev.nanoforge.library.LibraryManager libraryManager;
     private Metrics metrics;
 
     @Override
@@ -29,6 +30,9 @@ public class NanoForgePlugin extends JavaPlugin {
         StartupChecks.printBanner(this);
         StartupChecks.checkServerVersion(this);
         StartupChecks.checkOptionalDependencies(this);
+
+        File libsFolder = new File(getDataFolder(), "libraries");
+        this.libraryManager = new ru.nanodev.nanoforge.library.LibraryManager(libsFolder);
 
         File addonsFolder = new File(getDataFolder(), "addons");
         if (!addonsFolder.exists()) {
@@ -122,6 +126,10 @@ public class NanoForgePlugin extends JavaPlugin {
 
     public MenuManager getMenuManager() {
         return menuManager;
+    }
+
+    public ru.nanodev.nanoforge.library.LibraryManager getLibraryManager() {
+        return libraryManager;
     }
 }
 

@@ -42,9 +42,20 @@ public class VirtualAddonPlugin extends PluginBase {
         this.enabled = addon.isEnabled();
     }
 
+    public VirtualAddonPlugin(String pluginName, String version, String descriptionText) {
+        this.addon = null;
+        this.description = new PluginDescriptionFile(
+                pluginName,
+                version != null ? version : "1.0.0",
+                "ru.nanodev.nanoforge.virtual." + pluginName
+        );
+        this.logger = Logger.getLogger(pluginName);
+        this.enabled = true;
+    }
+
     @Override
     public File getDataFolder() {
-        return addon.getFolder();
+        return addon != null ? addon.getFolder() : new File(NanoForgePlugin.get().getDataFolder(), "virtual_" + getName());
     }
 
     @Override
@@ -54,7 +65,7 @@ public class VirtualAddonPlugin extends PluginBase {
 
     @Override
     public FileConfiguration getConfig() {
-        return addon.getYaml();
+        return addon != null ? addon.getYaml() : null;
     }
 
     @Override

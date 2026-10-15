@@ -8,9 +8,11 @@ name: CI
 # Хочешь вернуть автозапуск на каждый push - просто добавь обратно блок
 # "push: branches: [ main, master ]" сюда.
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
