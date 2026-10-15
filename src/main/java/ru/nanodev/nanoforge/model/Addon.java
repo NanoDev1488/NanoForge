@@ -94,6 +94,10 @@ public class Addon {
         return yaml.getString("commands." + cmdKey + ".description", "");
     }
 
+    public String getCommandPermission(String cmdKey) {
+        return yaml.getString("commands." + cmdKey + ".permission", null);
+    }
+
     public List<String> getCommandAliases(String cmdKey) {
         return yaml.getStringList("commands." + cmdKey + ".aliases");
     }

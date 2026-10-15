@@ -451,9 +451,9 @@ public class ActionRunner {
                             String varKey = String.valueOf(action.get("save_as"));
                             boolean global = "global".equalsIgnoreCase(String.valueOf(action.get("scope")));
                             if (global || player == null) {
-                                currentAddon.getStorage().setGlobal(varKey, String.valueOf(affected));
+                                currentAddon.getStorage().setGlobalVar(varKey, String.valueOf(affected));
                             } else {
-                                currentAddon.getStorage().set(player, varKey, String.valueOf(affected));
+                                currentAddon.getStorage().setVar(player, varKey, String.valueOf(affected));
                             }
                         }
                         break;
@@ -482,9 +482,9 @@ public class ActionRunner {
                             boolean global = "global".equalsIgnoreCase(String.valueOf(action.get("scope")));
                             String saveStr = resultVal == null ? "" : String.valueOf(resultVal);
                             if (global || player == null) {
-                                currentAddon.getStorage().setGlobal(varKey, saveStr);
+                                currentAddon.getStorage().setGlobalVar(varKey, saveStr);
                             } else {
-                                currentAddon.getStorage().set(player, varKey, saveStr);
+                                currentAddon.getStorage().setVar(player, varKey, saveStr);
                             }
                         }
                         break;

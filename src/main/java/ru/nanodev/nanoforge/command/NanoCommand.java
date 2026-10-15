@@ -16,6 +16,7 @@ import ru.nanodev.nanoforge.gui.MenuManager;
 import ru.nanodev.nanoforge.util.Messages;
 import org.bukkit.entity.Player;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
