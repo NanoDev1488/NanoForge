@@ -95,16 +95,57 @@ public class AddonCompiler {
     }
 
     private static void embedRuntimeClasses(JarOutputStream jos) {
-        // Embed compiled runtime classes for standalone execution
-        String[] runtimeClassNames = {
-                "ru/nanodev/nanoforge/compiler/runtime/StandaloneBootstrap.class"
-        };
-        for (String className : runtimeClassNames) {
-            try (InputStream in = AddonCompiler.class.getClassLoader().getResourceAsStream(className)) {
-                if (in != null) {
-                    writeEntry(jos, className, toByteArray(in));
+        Set<String> added = new HashSet<>();
+        added.add("META-INF/MANIFEST.MF");
+        added.add("plugin.yml");
+        added.add("addon.yml");
+
+        // Пытаемся взять классы напрямую из текущего выполняющегося JAR плагина (NanoForge.jar)
+        try {
+            java.net.URL location = AddonCompiler.class.getProtectionDomain().getCodeSource().getLocation();
+            if (location != null && location.getPath().endsWith(".jar")) {
+                File currentJar = new File(java.net.URLDecoder.decode(location.getPath(), "UTF-8"));
+                if (currentJar.exists()) {
+                    try (java.util.jar.JarFile jf = new java.util.jar.JarFile(currentJar)) {
+                        Enumeration<JarEntry> entries = jf.entries();
+                        while (entries.hasMoreElements()) {
+                            JarEntry entry = entries.nextElement();
+                            String name = entry.getName();
+                            if (name.endsWith(".class") && !added.contains(name)) {
+                                added.add(name);
+                                try (InputStream in = jf.getInputStream(entry)) {
+                                    writeEntry(jos, name, toByteArray(in));
+                                }
+                            }
+                        }
+                    }
                 }
-            } catch (Exception ignored) {}
+            }
+        } catch (Throwable ignored) {
+            // Если мы не в JAR (например, при тестах в IDE/Maven), берём критические классы через ClassLoader
+        }
+
+        // Гарантированный fallback для ключевых классов рантайма (StandaloneBootstrap, модели, утилиты)
+        String[] fallbackClasses = {
+                "ru/nanodev/nanoforge/compiler/runtime/StandaloneBootstrap.class",
+                "ru/nanodev/nanoforge/model/Addon.class",
+                "ru/nanodev/nanoforge/model/Addon$Type.class",
+                "ru/nanodev/nanoforge/engine/ActionRunner.class",
+                "ru/nanodev/nanoforge/engine/ConditionChecker.class",
+                "ru/nanodev/nanoforge/engine/PlaceholderUtil.class",
+                "ru/nanodev/nanoforge/engine/FancyFont.class",
+                "ru/nanodev/nanoforge/database/DatabaseManager.class",
+                "ru/nanodev/nanoforge/library/LibraryManager.class"
+        };
+        for (String className : fallbackClasses) {
+            if (!added.contains(className)) {
+                try (InputStream in = AddonCompiler.class.getClassLoader().getResourceAsStream(className)) {
+                    if (in != null) {
+                        added.add(className);
+                        writeEntry(jos, className, toByteArray(in));
+                    }
+                } catch (Exception ignored) {}
+            }
         }
     }
 
