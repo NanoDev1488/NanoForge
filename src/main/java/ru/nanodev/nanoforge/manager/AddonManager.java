@@ -482,7 +482,7 @@ public class AddonManager {
         }
 
         // регистрация как виртуального плагина в Bukkit
-        if (plugin.getConfig().getBoolean("register-addons-as-plugins", true)) {
+        if (plugin.getConfig() != null && plugin.getConfig().getBoolean("register-addons-as-plugins", true)) {
             VirtualPluginRegistrar.register(new VirtualAddonPlugin(addon));
         }
 

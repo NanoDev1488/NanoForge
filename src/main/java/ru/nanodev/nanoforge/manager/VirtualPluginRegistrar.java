@@ -19,7 +19,7 @@ import java.util.logging.Logger;
  */
 public final class VirtualPluginRegistrar {
 
-    private static final Logger LOGGER = Bukkit.getLogger();
+    private static final Logger LOGGER = Logger.getLogger("NanoForge-Registrar");
 
     private VirtualPluginRegistrar() {}
 

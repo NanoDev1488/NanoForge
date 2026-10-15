@@ -24,7 +24,7 @@ import java.util.logging.Logger;
  */
 public class LibraryManager {
 
-    private static final Logger LOGGER = Bukkit.getLogger();
+    private static final Logger LOGGER = Logger.getLogger("NanoForge-Library");
     private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
 
     private final File librariesFolder;

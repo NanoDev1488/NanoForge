@@ -14,7 +14,7 @@ import java.util.logging.Logger;
  */
 public class DatabaseManager {
 
-    private static final Logger LOGGER = Bukkit.getLogger();
+    private static final Logger LOGGER = Logger.getLogger("NanoForge-Database");
 
     private final String url;
     private final String user;
