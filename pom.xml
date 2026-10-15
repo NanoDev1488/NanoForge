@@ -121,6 +121,14 @@
       <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- SQLite JDBC для тестов DatabaseManager -->
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
+      <version>3.45.1.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
