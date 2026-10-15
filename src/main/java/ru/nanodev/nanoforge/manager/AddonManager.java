@@ -21,6 +21,7 @@ public class AddonManager {
     private final Map<String, Addon> addons = new LinkedHashMap<>();
     private final Map<String, DynamicListener> listeners = new HashMap<>();
     private final Map<String, List<Command>> registeredCommands = new HashMap<>();
+    private final Map<String, List<org.bukkit.scheduler.BukkitTask>> runningTasks = new HashMap<>();
     private SimpleCommandMap commandMap;
 
     public AddonManager(NanoForgePlugin plugin, File addonsFolder) {
@@ -452,6 +453,31 @@ public class AddonManager {
         }
         registeredCommands.put(addon.getName().toLowerCase(), cmds);
 
+        // фоновые задачи (tasks)
+        List<org.bukkit.scheduler.BukkitTask> tasks = new ArrayList<>();
+        for (String taskKey : addon.getTaskKeys()) {
+            long delay = addon.getTaskDelay(taskKey);
+            long interval = addon.getTaskInterval(taskKey);
+            List<?> taskActions = addon.getTaskActions(taskKey);
+            if (!taskActions.isEmpty() && interval > 0) {
+                org.bukkit.scheduler.BukkitTask task = Bukkit.getScheduler().runTaskTimer(
+                        plugin,
+                        () -> ru.nanodev.nanoforge.engine.ActionRunner.run(taskActions, null, null, plugin.getMenuManager(), addon),
+                        delay,
+                        interval
+                );
+                tasks.add(task);
+            }
+        }
+        if (!tasks.isEmpty()) {
+            runningTasks.put(addon.getName().toLowerCase(), tasks);
+        }
+
+        // регистрация как виртуального плагина в Bukkit
+        if (plugin.getConfig().getBoolean("register-addons-as-plugins", true)) {
+            VirtualPluginRegistrar.register(new VirtualAddonPlugin(addon));
+        }
+
         addon.setEnabled(true);
         addon.save();
         plugin.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("manager.enabled-log", "addon", addon.getName()));
@@ -504,6 +530,15 @@ public class AddonManager {
             // Bukkit'а разом, независимо от того, на какие события он был подписан.
             org.bukkit.event.HandlerList.unregisterAll(listener);
         }
+        List<org.bukkit.scheduler.BukkitTask> tasks = runningTasks.remove(key);
+        if (tasks != null) {
+            for (org.bukkit.scheduler.BukkitTask t : tasks) {
+                try {
+                    t.cancel();
+                } catch (Throwable ignored) {}
+            }
+        }
+        VirtualPluginRegistrar.unregister("NanoForge-" + addonName);
         // если у кого-то прямо сейчас открыто GUI-меню этого аддона - закрываем,
         // чтобы клик по кнопке не обращался к логике, которой только что не стало
         if (plugin.getMenuManager() != null) {

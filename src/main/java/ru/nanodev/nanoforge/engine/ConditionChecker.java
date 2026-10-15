@@ -173,6 +173,36 @@ public class ConditionChecker {
             String group = String.valueOf(cond.get("luckperms_group"));
             passed = player != null && LuckPermsBridge.isInGroup(player, group);
         }
+        if (passed && cond.containsKey("gamemode")) {
+            String gm = String.valueOf(cond.get("gamemode")).toUpperCase();
+            passed = player != null && player.getGameMode().name().equalsIgnoreCase(gm);
+        }
+        if (passed && cond.containsKey("sneak")) {
+            boolean needSneak = Boolean.parseBoolean(String.valueOf(cond.get("sneak")));
+            passed = player != null && player.isSneaking() == needSneak;
+        }
+        if (passed && cond.containsKey("level_at_least")) {
+            int needLevel = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(cond.get("level_at_least"), 0);
+            passed = player != null && player.getLevel() >= needLevel;
+        }
+        if (passed && cond.containsKey("food_at_least")) {
+            int needFood = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(cond.get("food_at_least"), 0);
+            passed = player != null && player.getFoodLevel() >= needFood;
+        }
+        if (passed && cond.containsKey("health_at_least")) {
+            double needHealth = ru.nanodev.nanoforge.util.NumberUtil.toDouble(cond.get("health_at_least"), 0);
+            passed = player != null && player.getHealth() >= needHealth;
+        }
+        if (passed && cond.containsKey("papi_compare")) {
+            Object rawCompare = cond.get("papi_compare");
+            if (rawCompare instanceof Map) {
+                Map<String, Object> map = (Map<String, Object>) rawCompare;
+                String placeholder = String.valueOf(map.getOrDefault("placeholder", ""));
+                String op = String.valueOf(map.getOrDefault("op", "=="));
+                String targetVal = String.valueOf(map.getOrDefault("value", ""));
+                passed = player != null && evaluatePapiCompare(player, placeholder, op, targetVal);
+            }
+        }
 
         // Композиция: any_of/all_of/not - каждый элемент это ПОЛНОЦЕННЫЙ if-блок (может сам
         // содержать любые из условий выше, включая ещё одну вложенную композицию). deny_message
@@ -238,6 +268,51 @@ public class ConditionChecker {
         }
         return time >= min || time <= max;
     }
+
+    private static boolean evaluatePapiCompare(Player player, String rawPlaceholder, String op, String targetVal) {
+        String resolved = PlaceholderUtil.apply(rawPlaceholder, player);
+        String resolvedTarget = PlaceholderUtil.apply(targetVal, player);
+
+        // Попробуем сравнить как числа, если оба парсятся
+        try {
+            double actualNum = Double.parseDouble(resolved.trim());
+            double targetNum = Double.parseDouble(resolvedTarget.trim());
+            switch (op.trim()) {
+                case "==":
+                case "=":
+                    return Math.abs(actualNum - targetNum) < 0.0001;
+                case "!=":
+                    return Math.abs(actualNum - targetNum) >= 0.0001;
+                case ">":
+                    return actualNum > targetNum;
+                case ">=":
+                    return actualNum >= targetNum;
+                case "<":
+                    return actualNum < targetNum;
+                case "<=":
+                    return actualNum <= targetNum;
+            }
+        } catch (NumberFormatException ignored) {
+            // сравниваем как строки
+        }
+
+        switch (op.trim()) {
+            case "==":
+            case "=":
+                return resolved.equalsIgnoreCase(resolvedTarget);
+            case "!=":
+                return !resolved.equalsIgnoreCase(resolvedTarget);
+            case "contains":
+                return resolved.toLowerCase().contains(resolvedTarget.toLowerCase());
+            case "starts_with":
+                return resolved.toLowerCase().startsWith(resolvedTarget.toLowerCase());
+            case "ends_with":
+                return resolved.toLowerCase().endsWith(resolvedTarget.toLowerCase());
+            default:
+                return resolved.equalsIgnoreCase(resolvedTarget);
+        }
+    }
 }
 
 // by t.me/NanoDev_mc
+

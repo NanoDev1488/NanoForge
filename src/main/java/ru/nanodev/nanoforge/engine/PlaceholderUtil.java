@@ -58,10 +58,34 @@ public class PlaceholderUtil {
             }
         }
 
+        // Серверные плейсхолдеры (не зависят от наличия контекста игрока)
+        if (result.contains("{") && result.contains("}")) {
+            if (containsIgnoreCase(result, "{maxplayers}") || containsIgnoreCase(result, "{max_players}")) {
+                int max = org.bukkit.Bukkit.getServer() != null ? org.bukkit.Bukkit.getMaxPlayers() : 0;
+                result = replaceIgnoreCase(result, "{maxplayers}", String.valueOf(max));
+                result = replaceIgnoreCase(result, "{max_players}", String.valueOf(max));
+            }
+            if (containsIgnoreCase(result, "{online}") || containsIgnoreCase(result, "{online_players}")) {
+                int online = org.bukkit.Bukkit.getServer() != null ? org.bukkit.Bukkit.getOnlinePlayers().size() : 0;
+                result = replaceIgnoreCase(result, "{online_players}", String.valueOf(online));
+                result = replaceIgnoreCase(result, "{online}", String.valueOf(online));
+            }
+        }
+
         // PlaceholderAPI - отдельный синтаксис (%...%), конфликтов с {...} быть не может
         result = PlaceholderAPIBridge.apply(result, player);
 
         return result;
+    }
+
+    private static boolean containsIgnoreCase(String src, String what) {
+        return src.toLowerCase().contains(what.toLowerCase());
+    }
+
+    private static String replaceIgnoreCase(String src, String target, String replacement) {
+        return java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(target), java.util.regex.Pattern.CASE_INSENSITIVE)
+                .matcher(src)
+                .replaceAll(java.util.regex.Matcher.quoteReplacement(replacement));
     }
 }
 

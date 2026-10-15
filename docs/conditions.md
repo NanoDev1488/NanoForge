@@ -91,6 +91,40 @@ if:
   deny_message: "&cТолько для игроков со статусом Premium."
 ```
 
+### 10. Режим игры (Gamemode)
+```yaml
+if:
+  gamemode: SURVIVAL              # SURVIVAL | CREATIVE | ADVENTURE | SPECTATOR
+  deny_message: "&cДействие доступно только в режиме выживания!"
+```
+
+### 11. Скрытность (Sneak / Приседание)
+```yaml
+if:
+  sneak: true                     # true - игрок должен быть на Shift; false - не должен приседать
+  deny_message: "&cПрисядьте на Shift для активации!"
+```
+
+### 12. Уровень, сытость и здоровье
+```yaml
+if:
+  level_at_least: 30              # Уровень опыта игрока >= 30
+  food_at_least: 18               # Сытость >= 18 (из 20)
+  health_at_least: 15.0           # Здоровье >= 15.0 HP
+  deny_message: "&cВы слишком истощены или у вас мало опыта!"
+```
+
+### 13. Универсальное сравнение PAPI (`papi_compare`)
+Позволяет сравнивать абсолютно любые плейсхолдеры из PlaceholderAPI с числами или строками:
+```yaml
+if:
+  papi_compare:
+    placeholder: "%player_ping%"
+    op: "<="                      # Доступны: ==, !=, >, >=, <, <=, contains, starts_with, ends_with
+    value: "100"
+  deny_message: "&cВаш пинг слишком высок для входа на эту арену!"
+```
+
 ---
 
 ## 🔀 Логическая композиция: `any_of`, `all_of`, `not`

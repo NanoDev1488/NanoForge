@@ -2,15 +2,66 @@
 
 <div align="center">
 
-<img src="https://img.shields.io/badge/Версия-v1.6.1-00FF9C?style=for-the-badge&logoColor=black" alt="Version 1.6.1"/>
-<img src="https://img.shields.io/badge/Тесты-274%2F274%20Passing-2c5364?style=for-the-badge" alt="Tests"/>
+<img src="https://img.shields.io/badge/Версия-v1.7.0-00FF9C?style=for-the-badge&logoColor=black" alt="Version 1.7.0"/>
 <img src="https://img.shields.io/badge/Статус-Release-2c5364?style=for-the-badge" alt="Status"/>
 
 </div>
 
 ---
 
-## 🌟 Версия 1.6.1 *(Текущая)*
+## 🚀 Версия 1.7.0 *(Текущая)*
+
+### 🧩 Виртуальная регистрация аддонов как Bukkit-плагинов
+* Каждый включенный аддон теперь динамически регистрируется в ядре Bukkit (`SimplePluginManager`) как полноценный плагин с именем вида **`NanoForge-<ИмяАддона>`** (например, `NanoForge-AutoMessage`).
+* Аддоны теперь видны в `/plugins`, доступны через `Bukkit.getPluginManager().getPlugin("NanoForge-...")` и возвращаются в `getPlugins()`.
+* **Опция отключения:** в `config.yml` добавлен параметр `register-addons-as-plugins: true` (если отключить, аддоны продолжат работать только внутри рантайма NanoForge).
+
+### ⏰ Фоновые периодические задачи (`tasks:`)
+* В `addon.yml` добавлена поддержка секции `tasks:` для запуска периодических действий без событий и кликов игрока:
+  ```yaml
+  tasks:
+    auto_broadcast:
+      interval: 1200 # в тиках (1200 тиков = 60 сек)
+      delay: 100     # задержка первого старта в тиках
+      actions:
+        - type: broadcast
+          text: "&b[Сервер] &7Не забывайте голосовать за наш сервер!"
+  ```
+* Все запущенные задачи автоматически отслеживаются и безопасно останавливаются при выключении или перезагрузке аддона (`/nano reload` / `/nano disable`).
+
+### ⌨️ Алиасы и автодополнение команд (Tab Complete)
+* В `commands.<name>` добавлены параметры:
+  * `aliases: [cmd1, cmd2]` — альтернативные названия команды.
+  * `tab_complete: [arg1, arg2, arg3]` — контекстные подсказки при нажатии Tab в чате.
+
+### 🎯 Новые условия в `if:`
+* `gamemode: SURVIVAL|CREATIVE|ADVENTURE|SPECTATOR` — режим игры.
+* `sneak: true|false` — присел ли игрок (Shift).
+* `level_at_least: 30` — проверка уровня опыта игрока.
+* `food_at_least: 15` — проверка шкалы сытости игрока.
+* `health_at_least: 10` — проверка количества здоровья.
+* `papi_compare: { placeholder: "%vault_eco_balance%", op: ">=", value: "500" }` — гибкое сравнение любых строковых или числовых плейсхолдеров PlaceholderAPI с операторами `==`, `!=`, `>`, `>=`, `<`, `<=`, `contains`, `starts_with`, `ends_with`.
+
+### ⚡ Новые действия (`actions`)
+* `type: potion_effect` — наложение эффектов зелий (`effect`, `duration`, `amplifier`, `ambient`, `particles`).
+* `type: heal` — восстановление здоровья (`amount: 5` или полное лечение при отсутствии параметра).
+* `type: feed` — восстановление шкалы сытости (`amount: 5` или полное насыщение при отсутствии параметра).
+* `type: lightning` — удар молнии (`effect_only: true/false`, по координатам `x, y, z, world` или по игроку).
+
+### 🔗 Цепочки методов в ReflectionBridge
+* В вызовах `type: call` теперь поддерживается вызов вложенных методов и геттеров через точку (например, `getEconomy.getBankBalance`).
+
+### 📋 Новые источники списков в GUI
+* В меню (`menus.<id>.list.source`) добавлены новые динамические источники:
+  * `source: addons` — список всех установленных аддонов NanoForge.
+  * `source: plugins` — список всех установленных Bukkit/Spigot плагинов сервера.
+
+### 🐛 Исправления и фиксы
+* Исправлен баг с плейсхолдерами `{maxplayers}` / `{MAXPLAYERS}` и `{online}` / `{online_players}` — теперь регистр не имеет значения, а значения корректно берутся из `Bukkit.getMaxPlayers()` и `Bukkit.getOnlinePlayers().size()`.
+
+---
+
+## 🌟 Версия 1.6.1
 
 ### 🔄 Автообновление с GitHub Releases
 * **Умный фоновый апдейтер:** при запуске сервера плагин асинхронно проверяет релизы в репозитории `NanoDev1488/NanoForge` и скачивает свежий jar в стандартную папку `plugins/update/`.

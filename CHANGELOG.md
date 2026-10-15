@@ -602,4 +602,46 @@ warnedMissing`) и один и тот же метод "проверить, ус�
 
 19 новых тестов (`UpdateCheckerTest`, `MessagesTest`). Итого **274/274**.
 
+## 1.7.0
+
+### Виртуальная регистрация аддонов как Bukkit-плагинов
+Каждый включенный аддон теперь динамически инжектится в ядро Bukkit (`SimplePluginManager`) как полноценный плагин с именем `NanoForge-<ИмяАддона>`.
+- Отображаются в `/plugins`, `/pl` и `Bukkit.getPluginManager().getPlugins()`.
+- Доступны через `Bukkit.getPluginManager().getPlugin("NanoForge-...")`.
+- Опция в `config.yml`: `register-addons-as-plugins: true` (можно отключить при необходимости).
+- Чистый `unregister` при отключении или перезагрузке аддона.
+
+### Фоновые периодические задачи (`tasks:`)
+В `addon.yml` добавлена секция `tasks:` для выполнения действий по таймеру (с `interval` и `delay` в тиках). Все задачи автоматически останавливаются при `/nano disable` / `/nano reload`.
+
+### Команды: алиасы и автодополнение (`aliases` и `tab_complete`)
+- `aliases: [cmd1, cmd2]` в описании команды `commands.<name>`.
+- `tab_complete: [arg1, arg2]` — контекстные подсказки аргументов в чате при нажатии Tab.
+
+### Новые условия в `if:`
+- `gamemode` (SURVIVAL/CREATIVE/ADVENTURE/SPECTATOR)
+- `sneak: true|false`
+- `level_at_least`
+- `food_at_least`
+- `health_at_least`
+- `papi_compare` — сравнение любых PlaceholderAPI плейсхолдеров (`==`, `!=`, `>`, `>=`, `<`, `<=`, `contains`, `starts_with`, `ends_with`).
+
+### Новые действия (`actions`)
+- `potion_effect` (`effect`, `duration`, `amplifier`, `ambient`, `particles`)
+- `heal` (`amount`)
+- `feed` (`amount`)
+- `lightning` (`effect_only`, координаты `x, y, z, world` или по игроку)
+
+### Цепочки вызовов в ReflectionBridge
+В `type: call` теперь поддерживается dot-notation для вызова цепочки методов (например, `getEconomy.getBankBalance`).
+
+### Источники списков в GUI
+В `menus.<id>.list.source` добавлены:
+- `source: addons` — список всех установленных аддонов
+- `source: plugins` — список всех установленных плагинов сервера
+
+### Фиксы
+Исправлен баг, из-за которого `{maxplayers}` / `{MAXPLAYERS}` и `{online}` / `{online_players}` не подставлялись.
+
 <!-- by t.me/NanoDev_mc -->
+

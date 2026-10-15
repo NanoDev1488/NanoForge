@@ -19,9 +19,25 @@ public class DynamicCommand extends Command {
     private final String cmdKey;
 
     public DynamicCommand(Addon addon, String cmdKey) {
-        super(cmdKey, addon.getCommandDescription(cmdKey), "/" + cmdKey, java.util.Collections.emptyList());
+        super(cmdKey, addon.getCommandDescription(cmdKey), "/" + cmdKey, addon.getCommandAliases(cmdKey));
         this.addon = addon;
         this.cmdKey = cmdKey;
+    }
+
+    @Override
+    public java.util.List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+        java.util.List<String> completions = addon.getCommandTabComplete(cmdKey);
+        if (completions == null || completions.isEmpty()) {
+            return super.tabComplete(sender, alias, args);
+        }
+        String lastArg = args.length > 0 ? args[args.length - 1].toLowerCase() : "";
+        java.util.List<String> matched = new java.util.ArrayList<>();
+        for (String c : completions) {
+            if (c.toLowerCase().startsWith(lastArg)) {
+                matched.add(c);
+            }
+        }
+        return matched;
     }
 
     @Override

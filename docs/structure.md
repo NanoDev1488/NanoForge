@@ -75,7 +75,27 @@ npcs:
     actions:
       - type: openmenu
         menu: main
+
+# Фоновые периодические задачи (tasks)
+tasks:
+  auto_announcer:
+    interval: 1200            # Периодичность запуска в тиках (1200 тиков = 60 сек)
+    delay: 200                # Задержка первого запуска в тиках
+    actions:
+      - type: broadcast
+        text: "&b[Сервер] &7Наш Discord: &fdiscord.gg/myserver"
 ```
+
+---
+
+## 🧩 Виртуальная регистрация плагинов в Bukkit
+Начиная с версии 1.7.0, каждый включенный аддон (`enabled: true`) регистрируется в ядре сервера как полноценный Bukkit-плагин с префиксом:
+`NanoForge-<ИмяАддона>` (например, `NanoForge-SuperRewards`).
+
+Благодаря этому:
+* Аддоны отображаются в зелёном списке при вводе команды `/plugins` или `/pl`.
+* Другие плагины могут обнаруживать их через `Bukkit.getPluginManager().getPlugin("NanoForge-SuperRewards")`.
+* В `config.yml` предусмотрен переключатель `register-addons-as-plugins: true` (можно выставить `false`, если вы хотите скрыть их из общего списка плагинов сервера).
 
 ---
 

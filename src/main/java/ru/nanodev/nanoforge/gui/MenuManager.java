@@ -203,6 +203,16 @@ public class MenuManager implements Listener {
             for (Player p : Bukkit.getOnlinePlayers()) names.add(p.getName());
             return names;
         }
+        if ("addons".equalsIgnoreCase(source)) {
+            return new ArrayList<>(plugin.getAddonManager().getAddonNames());
+        }
+        if ("plugins".equalsIgnoreCase(source)) {
+            List<String> list = new ArrayList<>();
+            for (org.bukkit.plugin.Plugin p : Bukkit.getPluginManager().getPlugins()) {
+                list.add(p.getName());
+            }
+            return list;
+        }
         return java.util.Collections.emptyList();
     }
 

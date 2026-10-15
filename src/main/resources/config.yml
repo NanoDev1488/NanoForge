@@ -15,4 +15,10 @@ update-checker:
   # найденном обновлении предупреждение всё равно выводится.
   notify-console: true
 
+# Регистрация каждого включенного аддона как полноценного плагина в Bukkit PluginManager.
+# Имя в /plugins и getPlugin() будет NanoForge-<ИмяАддона> (например NanoForge-AutoMessage).
+# Если false — аддоны работают в памяти NanoForge, но в общем списке плагинов сервера не видны.
+register-addons-as-plugins: true
+
 # by t.me/NanoDev_mc
+

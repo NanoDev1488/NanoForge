@@ -94,9 +94,32 @@ public class Addon {
         return yaml.getString("commands." + cmdKey + ".description", "");
     }
 
-    /** Необязательное право на саму команду (не путать с if: внутри отдельных actions). */
-    public String getCommandPermission(String cmdKey) {
-        return yaml.getString("commands." + cmdKey + ".permission", null);
+    public List<String> getCommandAliases(String cmdKey) {
+        return yaml.getStringList("commands." + cmdKey + ".aliases");
+    }
+
+    public List<String> getCommandTabComplete(String cmdKey) {
+        return yaml.getStringList("commands." + cmdKey + ".tab_complete");
+    }
+
+    // ---------- фоновые задачи (tasks) ----------
+
+    public List<String> getTaskKeys() {
+        if (!yaml.isConfigurationSection("tasks")) return java.util.Collections.emptyList();
+        return new java.util.ArrayList<>(yaml.getConfigurationSection("tasks").getKeys(false));
+    }
+
+    public long getTaskInterval(String taskKey) {
+        // default interval: 20 ticks (1 sec)
+        return yaml.getLong("tasks." + taskKey + ".interval", 20L);
+    }
+
+    public long getTaskDelay(String taskKey) {
+        return yaml.getLong("tasks." + taskKey + ".delay", 0L);
+    }
+
+    public List<?> getTaskActions(String taskKey) {
+        return yaml.getList("tasks." + taskKey + ".actions", java.util.Collections.emptyList());
     }
 
     // ---------- меню (GUI) ----------

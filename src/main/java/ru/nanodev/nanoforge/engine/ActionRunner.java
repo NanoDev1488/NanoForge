@@ -366,6 +366,65 @@ public class ActionRunner {
                         Bukkit.getScheduler().runTaskLater(ru.nanodev.nanoforge.NanoForgePlugin.get(),
                                 () -> ActionRunner.run(nestedActions, fSender, fEvent, fMenuManager, fAddon, fArgs),
                                 ticks);
+                    case "potion_effect": {
+                        if (player == null) break;
+                        String effectName = String.valueOf(action.getOrDefault("effect", "SPEED")).toUpperCase();
+                        int durationTicks = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("duration"), 100);
+                        int amplifier = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("amplifier"), 0);
+                        boolean ambient = Boolean.parseBoolean(String.valueOf(action.getOrDefault("ambient", "false")));
+                        boolean particles = Boolean.parseBoolean(String.valueOf(action.getOrDefault("particles", "true")));
+                        org.bukkit.potion.PotionEffectType typeObj = org.bukkit.potion.PotionEffectType.getByName(effectName);
+                        if (typeObj != null) {
+                            player.addPotionEffect(new org.bukkit.potion.PotionEffect(typeObj, durationTicks, amplifier, ambient, particles));
+                        } else {
+                            Bukkit.getLogger().warning("[NanoForge] Unknown potion effect: " + effectName);
+                        }
+                        break;
+                    }
+                    case "heal": {
+                        if (player == null) break;
+                        double amount = ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("amount"), -1);
+                        double maxHealth = player.getMaxHealth();
+                        if (amount <= 0) {
+                            player.setHealth(maxHealth);
+                        } else {
+                            player.setHealth(Math.min(maxHealth, player.getHealth() + amount));
+                        }
+                        break;
+                    }
+                    case "feed": {
+                        if (player == null) break;
+                        int amount = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("amount"), -1);
+                        if (amount <= 0) {
+                            player.setFoodLevel(20);
+                        } else {
+                            player.setFoodLevel(Math.min(20, player.getFoodLevel() + amount));
+                        }
+                        break;
+                    }
+                    case "lightning": {
+                        org.bukkit.Location loc = null;
+                        if (action.containsKey("x") && action.containsKey("y") && action.containsKey("z")) {
+                            org.bukkit.World w = action.containsKey("world")
+                                    ? Bukkit.getWorld(String.valueOf(action.get("world")))
+                                    : (player != null ? player.getWorld() : null);
+                            if (w != null) {
+                                double x = ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("x"), 0);
+                                double y = ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("y"), 0);
+                                double z = ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("z"), 0);
+                                loc = new org.bukkit.Location(w, x, y, z);
+                            }
+                        } else if (player != null) {
+                            loc = player.getLocation();
+                        }
+                        if (loc != null && loc.getWorld() != null) {
+                            boolean effectOnly = Boolean.parseBoolean(String.valueOf(action.getOrDefault("effect_only", "false")));
+                            if (effectOnly) {
+                                loc.getWorld().strikeLightningEffect(loc);
+                            } else {
+                                loc.getWorld().strikeLightning(loc);
+                            }
+                        }
                         break;
                     }
                     default:
