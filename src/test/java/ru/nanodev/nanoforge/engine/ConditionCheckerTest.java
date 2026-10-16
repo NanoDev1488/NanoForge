@@ -512,6 +512,7 @@ class ConditionCheckerTest {
     void weatherEqualsRainDoesNotMatchThunderstorm() {
         lenient().when(player.getWorld()).thenReturn(world);
         when(world.hasStorm()).thenReturn(true);
+        when(world.isThundering()).thenReturn(true);
         Map<String, Object> ifBlock = new LinkedHashMap<>();
         ifBlock.put("weather_equals", "rain");
 

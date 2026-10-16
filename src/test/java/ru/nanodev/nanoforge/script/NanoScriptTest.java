@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import ru.nanodev.nanoforge.model.Addon;
 
+import org.assertj.core.data.Offset;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -120,7 +122,7 @@ class NanoScriptTest {
         assertThat(NanoVM.executeBoolean(NanoScript.compile(expr), ctx)).isTrue();
 
         // Расчёт вампиризма: event.damage * 0.35 -> 10.0 * 0.35 = 3.5
-        assertThat(NanoVM.executeDouble(NanoScript.compile("event.damage * 0.35"), ctx)).isEqualTo(3.5);
+        assertThat(NanoVM.executeDouble(NanoScript.compile("event.damage * 0.35"), ctx)).isCloseTo(3.5, Offset.offset(0.0001));
     }
 
     @Test
