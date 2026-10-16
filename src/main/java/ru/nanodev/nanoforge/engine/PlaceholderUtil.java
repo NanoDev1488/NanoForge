@@ -19,10 +19,15 @@ import ru.nanodev.nanoforge.integration.PlaceholderAPIBridge;
 public class PlaceholderUtil {
 
     public static String apply(String text, Player player) {
-        return apply(text, player, null);
+        return apply(text, player, null, null, null);
     }
 
     public static String apply(String text, Player player, String[] commandArgs) {
+        return apply(text, player, null, null, commandArgs);
+    }
+
+    public static String apply(String text, Player player, org.bukkit.event.Event event,
+                               ru.nanodev.nanoforge.model.Addon addon, String[] commandArgs) {
         if (text == null) return null;
 
         String result = text;
@@ -69,6 +74,32 @@ public class PlaceholderUtil {
                 int online = org.bukkit.Bukkit.getServer() != null ? org.bukkit.Bukkit.getOnlinePlayers().size() : 0;
                 result = replaceIgnoreCase(result, "{online_players}", String.valueOf(online));
                 result = replaceIgnoreCase(result, "{online}", String.valueOf(online));
+            }
+        }
+
+        // NanoScript динамические выражения {script:...} или {event.damage * 0.35}
+        if (result.contains("{") && result.contains("}")) {
+            int startIdx = 0;
+            while ((startIdx = result.indexOf('{', startIdx)) != -1) {
+                int endIdx = result.indexOf('}', startIdx);
+                if (endIdx == -1) break;
+                String tag = result.substring(startIdx + 1, endIdx).trim();
+                boolean isScriptTag = tag.startsWith("script:") || tag.startsWith("calc:");
+                boolean hasExpressionChars = tag.contains("*") || tag.contains("/") || tag.contains("+")
+                        || tag.contains("-") || tag.contains(".") || tag.contains("(") || tag.contains("%");
+
+                if (isScriptTag || hasExpressionChars) {
+                    String expr = isScriptTag ? tag.substring(tag.indexOf(':') + 1).trim() : tag;
+                    try {
+                        String evaluated = ru.nanodev.nanoforge.script.NanoScript.evalString(expr, player, event, addon);
+                        if (evaluated != null && !evaluated.isEmpty()) {
+                            result = result.substring(0, startIdx) + evaluated + result.substring(endIdx + 1);
+                            startIdx += evaluated.length();
+                            continue;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+                startIdx = endIdx + 1;
             }
         }
 

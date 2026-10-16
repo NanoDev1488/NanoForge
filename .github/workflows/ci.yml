@@ -109,6 +109,7 @@ jobs:
           echo "nano enable StandaloneAddon" >&3; sleep 2
           echo "nano compile StandaloneNew 1.0.0" >&3; sleep 3
           echo "nano compile StandaloneAddon 1.0.0" >&3; sleep 3
+          echo "nano script test 5 + 5 * 2" >&3; sleep 2
           echo "stop" >&3
 
           for i in $(seq 1 30); do
@@ -121,6 +122,7 @@ jobs:
 
           FAIL=0
           grep -q "NanoForge" console.log || { echo "!!! плагин не подал признаков жизни в логе"; FAIL=1; }
+          grep -q "Результат: 15" console.log || { echo "!!! nano script test failed"; FAIL=1; }
           [ -f plugins/NanoForge/compiled/StandaloneNew-1.0.0.jar ] || { echo "!!! StandaloneNew jar не скомпилирован"; FAIL=1; }
           [ -f plugins/NanoForge/compiled/StandaloneAddon-1.0.0.jar ] || { echo "!!! StandaloneAddon jar не скомпилирован"; FAIL=1; }
 

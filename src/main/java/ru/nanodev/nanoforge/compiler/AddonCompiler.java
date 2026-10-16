@@ -135,7 +135,19 @@ public class AddonCompiler {
                 "ru/nanodev/nanoforge/engine/PlaceholderUtil.class",
                 "ru/nanodev/nanoforge/engine/FancyFont.class",
                 "ru/nanodev/nanoforge/database/DatabaseManager.class",
-                "ru/nanodev/nanoforge/library/LibraryManager.class"
+                "ru/nanodev/nanoforge/library/LibraryManager.class",
+                "ru/nanodev/nanoforge/script/NanoScript.class",
+                "ru/nanodev/nanoforge/script/NanoVM.class",
+                "ru/nanodev/nanoforge/script/NanoStackFrame.class",
+                "ru/nanodev/nanoforge/script/NanoProgram.class",
+                "ru/nanodev/nanoforge/script/NanoOpcode.class",
+                "ru/nanodev/nanoforge/script/NanoParser.class",
+                "ru/nanodev/nanoforge/script/NanoLexer.class",
+                "ru/nanodev/nanoforge/script/Token.class",
+                "ru/nanodev/nanoforge/script/TokenType.class",
+                "ru/nanodev/nanoforge/script/BytecodeEmitter.class",
+                "ru/nanodev/nanoforge/script/NanoContext.class",
+                "ru/nanodev/nanoforge/script/BukkitBinding.class"
         };
         for (String className : fallbackClasses) {
             if (!added.contains(className)) {

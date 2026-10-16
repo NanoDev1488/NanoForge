@@ -42,15 +42,25 @@ public class DynamicListener implements Listener {
     }
 
     public boolean register(Addon addon, String eventKey) {
-        Class<? extends Event> eventClass = resolveEventClass(eventKey);
+        String triggerName = addon.getEventTrigger(eventKey);
+        Class<? extends Event> eventClass = resolveEventClass(triggerName);
         if (eventClass == null) {
-            plugin.getLogger().warning(Messages.get("dynamic.listener.class-not-found", "event", eventKey, "addon", addon.getName()));
+            plugin.getLogger().warning(Messages.get("dynamic.listener.class-not-found", "event", triggerName, "addon", addon.getName()));
             return false;
         }
 
         EventExecutor executor = (listener, event) -> {
             if (!eventClass.isInstance(event)) return;
             if (!addon.isEnabled()) return; // аддон выключен - просто игнорируем событие
+
+            // NanoScript условие на уровне события / механики
+            String cond = addon.getEventCondition(eventKey);
+            if (cond != null && !cond.trim().isEmpty()) {
+                if (!ru.nanodev.nanoforge.script.NanoScript.evalBoolean(cond, null, event, addon)) {
+                    return;
+                }
+            }
+
             try {
                 ActionRunner.run(addon.getEventActions(eventKey), null, event,
                         plugin.getMenuManager(), addon);
@@ -72,6 +82,7 @@ public class DynamicListener implements Listener {
 
     @SuppressWarnings("unchecked")
     public static Class<? extends Event> resolveEventClass(String name) {
+        if (name == null) return null;
         if (name.contains(".")) {
             try {
                 return (Class<? extends Event>) Class.forName(name);
@@ -79,6 +90,21 @@ public class DynamicListener implements Listener {
                 return null;
             }
         }
+
+        if (name.contains("_")) {
+            String[] parts = name.split("_");
+            StringBuilder sb = new StringBuilder();
+            for (String p : parts) {
+                if (!p.isEmpty()) {
+                    sb.append(Character.toUpperCase(p.charAt(0)));
+                    if (p.length() > 1) {
+                        sb.append(p.substring(1).toLowerCase());
+                    }
+                }
+            }
+            name = sb.toString();
+        }
+
         String shortName = name.endsWith("Event") ? name : name + "Event";
         for (String pkg : PACKAGES) {
             try {

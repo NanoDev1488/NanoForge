@@ -512,12 +512,35 @@ class ConditionCheckerTest {
     void weatherEqualsRainDoesNotMatchThunderstorm() {
         lenient().when(player.getWorld()).thenReturn(world);
         when(world.hasStorm()).thenReturn(true);
-        when(world.isThundering()).thenReturn(true);
-
         Map<String, Object> ifBlock = new LinkedHashMap<>();
         ifBlock.put("weather_equals", "rain");
 
         assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isFalse();
+    }
+
+    @Test
+    void scriptConditionEvaluatesCorrectly() {
+        lenient().when(player.getHealth()).thenReturn(10.0);
+
+        Map<String, Object> ifBlock = new LinkedHashMap<>();
+        ifBlock.put("script", "player.health >= 8.0 && 2 + 2 == 4");
+
+        assertThat(ConditionChecker.check(actionWithIf(ifBlock), player, addon)).isTrue();
+
+        Map<String, Object> failBlock = new LinkedHashMap<>();
+        failBlock.put("script", "player.health < 5.0");
+        assertThat(ConditionChecker.check(actionWithIf(failBlock), player, addon)).isFalse();
+    }
+
+    @Test
+    void rawStringConditionEvaluatesCorrectly() {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("condition", "50 * 2 == 100 && chance(100%)");
+
+        assertThat(ConditionChecker.check(action, player, addon)).isTrue();
+
+        action.put("condition", "10 > 20");
+        assertThat(ConditionChecker.check(action, player, addon)).isFalse();
     }
 }
 

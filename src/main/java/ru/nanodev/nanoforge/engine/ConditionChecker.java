@@ -49,10 +49,48 @@ import java.util.Map;
 public class ConditionChecker {
 
     public static boolean check(Map<String, Object> action, Player player, Addon addon) {
+        return check(action, player, null, addon);
+    }
+
+    public static boolean check(Map<String, Object> action, Player player, org.bukkit.event.Event event, Addon addon) {
+        if (action == null) return true;
+
+        // Прямое условие NanoScript: condition: "..." или script: "..."
+        if (action.containsKey("condition")) {
+            String expr = String.valueOf(action.get("condition"));
+            if (!ru.nanodev.nanoforge.script.NanoScript.evalBoolean(expr, player, event, addon)) {
+                sendActionDeny(action, player);
+                return false;
+            }
+        }
+        if (action.containsKey("script") && !"script".equalsIgnoreCase(String.valueOf(action.get("type")))) {
+            String expr = String.valueOf(action.get("script"));
+            if (!ru.nanodev.nanoforge.script.NanoScript.evalBoolean(expr, player, event, addon)) {
+                sendActionDeny(action, player);
+                return false;
+            }
+        }
+
         Object rawIf = action.get("if");
-        if (!(rawIf instanceof Map)) return true; // условий нет - action выполняется всегда
+        if (rawIf == null) return true;
+
+        if (rawIf instanceof String) {
+            boolean ok = ru.nanodev.nanoforge.script.NanoScript.evalBoolean((String) rawIf, player, event, addon);
+            if (!ok) sendActionDeny(action, player);
+            return ok;
+        }
+
+        if (!(rawIf instanceof Map)) return true;
         Map<String, Object> cond = (Map<String, Object>) rawIf;
-        return evaluate(cond, player, addon, true);
+        return evaluate(cond, player, event, addon, true);
+    }
+
+    private static void sendActionDeny(Map<String, Object> action, Player player) {
+        if (player != null && action != null && action.containsKey("deny_message")) {
+            String raw = String.valueOf(action.get("deny_message"));
+            String msg = PlaceholderUtil.apply(raw, player);
+            player.sendMessage(org.bukkit.ChatColor.translateAlternateColorCodes('&', msg));
+        }
     }
 
     /** То же самое, но для секции ConfigurationSection (используется для видимости пунктов меню). */
@@ -82,14 +120,28 @@ public class ConditionChecker {
             passed = player != null && tc != null
                     && withinTimeRange(player.getWorld().getTime(), tc.getLong("min", 0), tc.getLong("max", 24000));
         }
+        if (passed && (cond.contains("script") || cond.contains("condition"))) {
+            String expr = cond.contains("script") ? cond.getString("script") : cond.getString("condition");
+            passed = ru.nanodev.nanoforge.script.NanoScript.evalBoolean(expr, player, null, null);
+        }
         // var_equals/var_at_least/cooldown для видимости пунктов не поддерживаются намеренно -
         // видимость должна быть дешёвой проверкой без побочных эффектов (кулдаун их имеет).
         return passed;
     }
 
     private static boolean evaluate(Map<String, Object> cond, Player player, Addon addon, boolean sendDenyMessage) {
+        return evaluate(cond, player, null, addon, sendDenyMessage);
+    }
+
+    private static boolean evaluate(Map<String, Object> cond, Player player, org.bukkit.event.Event event,
+                                    Addon addon, boolean sendDenyMessage) {
         boolean passed = true;
         String cooldownRemainingForMessage = null;
+
+        if (cond.containsKey("script") || cond.containsKey("condition")) {
+            String expr = String.valueOf(cond.containsKey("script") ? cond.get("script") : cond.get("condition"));
+            passed = ru.nanodev.nanoforge.script.NanoScript.evalBoolean(expr, player, event, addon);
+        }
 
         if (cond.containsKey("permission")) {
             String perm = String.valueOf(cond.get("permission"));
@@ -210,14 +262,14 @@ public class ConditionChecker {
         // из трёх непройденных условий игрок получил бы три сообщения разом; deny_message
         // самого внешнего if - единственный, который реально показывается.
         if (passed && cond.containsKey("any_of")) {
-            passed = evaluateList(cond.get("any_of"), player, addon, false);
+            passed = evaluateList(cond.get("any_of"), player, event, addon, false);
         }
         if (passed && cond.containsKey("all_of")) {
-            passed = evaluateList(cond.get("all_of"), player, addon, true);
+            passed = evaluateList(cond.get("all_of"), player, event, addon, true);
         }
         if (passed && cond.containsKey("not")) {
             Object rawSub = cond.get("not");
-            passed = !(rawSub instanceof Map) || !evaluate((Map<String, Object>) rawSub, player, addon, false);
+            passed = !(rawSub instanceof Map) || !evaluate((Map<String, Object>) rawSub, player, event, addon, false);
         }
 
         if (!passed && sendDenyMessage && player != null && cond.containsKey("deny_message")) {
@@ -233,12 +285,13 @@ public class ConditionChecker {
     }
 
     /** requireAll=true -> all_of (все элементы должны пройти), false -> any_of (хотя бы один). */
-    private static boolean evaluateList(Object rawList, Player player, Addon addon, boolean requireAll) {
+    private static boolean evaluateList(Object rawList, Player player, org.bukkit.event.Event event,
+                                        Addon addon, boolean requireAll) {
         if (!(rawList instanceof java.util.List)) return false;
         java.util.List<?> list = (java.util.List<?>) rawList;
         if (list.isEmpty()) return requireAll; // пустой all_of вырожденно true, пустой any_of - false
         for (Object item : list) {
-            boolean itemPassed = item instanceof Map && evaluate((Map<String, Object>) item, player, addon, false);
+            boolean itemPassed = item instanceof Map && evaluate((Map<String, Object>) item, player, event, addon, false);
             if (requireAll && !itemPassed) return false;
             if (!requireAll && itemPassed) return true;
         }

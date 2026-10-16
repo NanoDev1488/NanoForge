@@ -77,13 +77,13 @@ public class ActionRunner {
         Object[] lastCallResult = { null }; // хранится в массиве, чтобы менять из тела case внутри switch
 
         for (Object raw : actions) {
-            if (!(raw instanceof Map)) continue;
-            Map<String, Object> action = (Map<String, Object>) raw;
+            Map<String, Object> action = normalizeAction(raw);
+            if (action == null) continue;
             boolean debug = ru.nanodev.nanoforge.util.ActionDebugger.isEnabled(currentAddonName);
             String debugType = debug ? String.valueOf(action.getOrDefault("type", "?")) : null;
 
             try {
-                if (!ConditionChecker.check(action, player, currentAddon)) {
+                if (!ConditionChecker.check(action, player, event, currentAddon)) {
                     if (debug) {
                         Bukkit.getLogger().info(ru.nanodev.nanoforge.util.Messages.get("engine.debug.skipped",
                                 "addon", currentAddonName, "type", debugType));
@@ -205,6 +205,20 @@ public class ActionRunner {
                             else if (player != null) currentAddon.getStorage().setVar(player, key, resultStr);
                         }
                         lastCallResult[0] = result;
+                        break;
+                    }
+                    case "script": {
+                        String code = String.valueOf(action.getOrDefault("code", action.getOrDefault("script", "")));
+                        code = PlaceholderUtil.apply(code, player, event, currentAddon, commandArgs);
+                        Object result = ru.nanodev.nanoforge.script.NanoScript.eval(code, player, event, currentAddon);
+                        lastCallResult[0] = result;
+                        if (action.containsKey("save_as") && currentAddon != null) {
+                            String key = String.valueOf(action.get("save_as"));
+                            boolean global = "global".equalsIgnoreCase(String.valueOf(action.getOrDefault("scope", "player")));
+                            String resultStr = result != null ? String.valueOf(result) : "";
+                            if (global) currentAddon.getStorage().setGlobalVar(key, resultStr);
+                            else if (player != null) currentAddon.getStorage().setVar(player, key, resultStr);
+                        }
                         break;
                     }
                     case "openmenu": {
@@ -331,23 +345,24 @@ public class ActionRunner {
                         break;
                     }
                     case "title": {
-                        if (player == null) break;
+                        Player targetPlayer = resolveTargetPlayer(action, player, event);
+                        if (targetPlayer == null) break;
                         if (action.containsKey("title") || action.containsKey("subtitle")) {
                             String titleText = action.containsKey("title")
-                                    ? colorize(PlaceholderUtil.apply(String.valueOf(action.get("title")), player, commandArgs))
+                                    ? colorize(PlaceholderUtil.apply(String.valueOf(action.get("title")), targetPlayer, event, currentAddon, commandArgs))
                                     : "";
                             String subtitleText = action.containsKey("subtitle")
-                                    ? colorize(PlaceholderUtil.apply(String.valueOf(action.get("subtitle")), player, commandArgs))
+                                    ? colorize(PlaceholderUtil.apply(String.valueOf(action.get("subtitle")), targetPlayer, event, currentAddon, commandArgs))
                                     : "";
                             int fadeIn = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("fadein"), 10);
                             int stay = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("stay"), 70);
                             int fadeOut = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("fadeout"), 20);
-                            player.sendTitle(titleText, subtitleText, fadeIn, stay, fadeOut);
+                            targetPlayer.sendTitle(titleText, subtitleText, fadeIn, stay, fadeOut);
                         }
                         if (action.containsKey("actionbar")) {
                             String bar = withResult(colorize(PlaceholderUtil.apply(
-                                    String.valueOf(action.get("actionbar")), player, commandArgs)), lastCallResult[0]);
-                            player.spigot().sendMessage(
+                                    String.valueOf(action.get("actionbar")), targetPlayer, event, currentAddon, commandArgs)), lastCallResult[0]);
+                            targetPlayer.spigot().sendMessage(
                                     net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
                                     new net.md_5.bungee.api.chat.TextComponent(bar));
                         }
@@ -369,7 +384,8 @@ public class ActionRunner {
                         break;
                     }
                     case "potion_effect": {
-                        if (player == null) break;
+                        Player effTarget = resolveTargetPlayer(action, player, event);
+                        if (effTarget == null) break;
                         String effectName = String.valueOf(action.getOrDefault("effect", "SPEED")).toUpperCase();
                         int durationTicks = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("duration"), 100);
                         int amplifier = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("amplifier"), 0);
@@ -377,30 +393,46 @@ public class ActionRunner {
                         boolean particles = Boolean.parseBoolean(String.valueOf(action.getOrDefault("particles", "true")));
                         org.bukkit.potion.PotionEffectType typeObj = org.bukkit.potion.PotionEffectType.getByName(effectName);
                         if (typeObj != null) {
-                            player.addPotionEffect(new org.bukkit.potion.PotionEffect(typeObj, durationTicks, amplifier, ambient, particles));
+                            effTarget.addPotionEffect(new org.bukkit.potion.PotionEffect(typeObj, durationTicks, amplifier, ambient, particles));
                         } else {
                             Bukkit.getLogger().warning("[NanoForge] Unknown potion effect: " + effectName);
                         }
                         break;
                     }
                     case "heal": {
-                        if (player == null) break;
-                        double amount = ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("amount"), -1);
-                        double maxHealth = player.getMaxHealth();
+                        Player healTarget = resolveTargetPlayer(action, player, event);
+                        if (healTarget == null) break;
+                        Object amountRaw = action.get("amount");
+                        double amount = -1;
+                        if (amountRaw instanceof Number) {
+                            amount = ((Number) amountRaw).doubleValue();
+                        } else if (amountRaw != null) {
+                            String expr = PlaceholderUtil.apply(String.valueOf(amountRaw), healTarget, event, currentAddon, commandArgs);
+                            amount = ru.nanodev.nanoforge.script.NanoScript.evalDouble(expr, healTarget, event, currentAddon);
+                        }
+                        double maxHealth = healTarget.getMaxHealth();
                         if (amount <= 0) {
-                            player.setHealth(maxHealth);
+                            healTarget.setHealth(maxHealth);
                         } else {
-                            player.setHealth(Math.min(maxHealth, player.getHealth() + amount));
+                            healTarget.setHealth(Math.min(maxHealth, healTarget.getHealth() + amount));
                         }
                         break;
                     }
                     case "feed": {
-                        if (player == null) break;
-                        int amount = (int) ru.nanodev.nanoforge.util.NumberUtil.toDouble(action.get("amount"), -1);
+                        Player feedTarget = resolveTargetPlayer(action, player, event);
+                        if (feedTarget == null) break;
+                        Object amountRaw = action.get("amount");
+                        double amount = -1;
+                        if (amountRaw instanceof Number) {
+                            amount = ((Number) amountRaw).doubleValue();
+                        } else if (amountRaw != null) {
+                            String expr = PlaceholderUtil.apply(String.valueOf(amountRaw), feedTarget, event, currentAddon, commandArgs);
+                            amount = ru.nanodev.nanoforge.script.NanoScript.evalDouble(expr, feedTarget, event, currentAddon);
+                        }
                         if (amount <= 0) {
-                            player.setFoodLevel(20);
+                            feedTarget.setFoodLevel(20);
                         } else {
-                            player.setFoodLevel(Math.min(20, player.getFoodLevel() + amount));
+                            feedTarget.setFoodLevel(Math.min(20, (int) (feedTarget.getFoodLevel() + amount)));
                         }
                         break;
                     }
@@ -576,10 +608,157 @@ public class ActionRunner {
         if (event instanceof org.bukkit.event.player.PlayerEvent) {
             return ((org.bukkit.event.player.PlayerEvent) event).getPlayer();
         }
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent) {
+            org.bukkit.entity.Entity damager = ((org.bukkit.event.entity.EntityDamageByEntityEvent) event).getDamager();
+            if (damager instanceof org.bukkit.entity.Projectile) {
+                org.bukkit.projectiles.ProjectileSource s = ((org.bukkit.entity.Projectile) damager).getShooter();
+                if (s instanceof Player) return (Player) s;
+            }
+            if (damager instanceof Player) return (Player) damager;
+            org.bukkit.entity.Entity victim = ((org.bukkit.event.entity.EntityDamageByEntityEvent) event).getEntity();
+            if (victim instanceof Player) return (Player) victim;
+        }
+        if (event instanceof org.bukkit.event.entity.EntityDamageEvent) {
+            org.bukkit.entity.Entity entity = ((org.bukkit.event.entity.EntityDamageEvent) event).getEntity();
+            if (entity instanceof Player) return (Player) entity;
+        }
         return null;
     }
 
+    private static Player resolveTargetPlayer(Map<String, Object> action, Player defaultPlayer, Event event) {
+        if (action != null && action.containsKey("target")) {
+            String t = String.valueOf(action.get("target")).trim().toLowerCase();
+            if ("attacker".equals(t) && event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent) {
+                org.bukkit.entity.Entity d = ((org.bukkit.event.entity.EntityDamageByEntityEvent) event).getDamager();
+                if (d instanceof org.bukkit.entity.Projectile) {
+                    org.bukkit.projectiles.ProjectileSource s = ((org.bukkit.entity.Projectile) d).getShooter();
+                    if (s instanceof Player) return (Player) s;
+                }
+                if (d instanceof Player) return (Player) d;
+            } else if ("victim".equals(t) && event instanceof org.bukkit.event.entity.EntityDamageEvent) {
+                org.bukkit.entity.Entity ent = ((org.bukkit.event.entity.EntityDamageEvent) event).getEntity();
+                if (ent instanceof Player) return (Player) ent;
+            }
+        }
+        return defaultPlayer;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> normalizeAction(Object raw) {
+        if (raw instanceof Map) return (Map<String, Object>) raw;
+        if (!(raw instanceof String)) return null;
+
+        String line = ((String) raw).trim();
+        if (line.isEmpty() || line.startsWith("#")) return null;
+
+        Map<String, Object> map = new java.util.HashMap<>();
+        int colon = line.indexOf(':');
+        if (colon == -1) {
+            map.put("type", "script");
+            map.put("code", line);
+            return map;
+        }
+
+        String type = line.substring(0, colon).trim().toLowerCase();
+        String rest = line.substring(colon + 1).trim();
+
+        if ("actionbar".equals(type)) {
+            map.put("type", "title");
+            if (rest.contains(",")) {
+                int c = rest.indexOf(',');
+                String target = rest.substring(0, c).trim();
+                String text = stripQuotes(rest.substring(c + 1).trim());
+                map.put("target", target);
+                map.put("actionbar", text);
+            } else {
+                map.put("actionbar", stripQuotes(rest));
+            }
+            return map;
+        }
+
+        if ("message".equals(type) || "broadcast".equals(type)) {
+            map.put("type", type);
+            if (rest.contains(",")) {
+                int c = rest.indexOf(',');
+                String target = rest.substring(0, c).trim();
+                String text = stripQuotes(rest.substring(c + 1).trim());
+                map.put("target", target);
+                map.put("text", text);
+            } else {
+                map.put("text", stripQuotes(rest));
+            }
+            return map;
+        }
+
+        if ("console".equals(type)) {
+            map.put("type", "console");
+            map.put("command", stripQuotes(rest));
+            return map;
+        }
+
+        if ("script".equals(type)) {
+            map.put("type", "script");
+            map.put("code", stripQuotes(rest));
+            return map;
+        }
+
+        map.put("type", type);
+        parseParamString(rest, map);
+        return map;
+    }
+
+    private static void parseParamString(String rest, Map<String, Object> map) {
+        if (rest == null || rest.isEmpty()) return;
+        String[] parts = rest.split(",");
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if (part.isEmpty()) continue;
+            int eq = part.indexOf('=');
+            if (eq != -1) {
+                String key = part.substring(0, eq).trim().toLowerCase();
+                String val = stripQuotes(part.substring(eq + 1).trim());
+                map.put(key, val);
+            } else {
+                if (i == 0) {
+                    if ("attacker".equalsIgnoreCase(part) || "victim".equalsIgnoreCase(part) || "player".equalsIgnoreCase(part)) {
+                        map.put("target", part.toLowerCase());
+                    } else if ("particle".equalsIgnoreCase(String.valueOf(map.get("type")))) {
+                        map.put("particle", part);
+                    } else {
+                        map.put("target", part);
+                    }
+                }
+            }
+        }
+    }
+
+    private static String stripQuotes(String s) {
+        if (s == null) return "";
+        s = s.trim();
+        if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith("\"") && s.endsWith("\""))) {
+            if (s.length() >= 2) return s.substring(1, s.length() - 1);
+        }
+        return s;
+    }
+
     private static String colorize(String s) {
+        if (s == null) return "";
+        // Поддержка HEX цветов <#RRGGBB> и &#RRGGBB для Paper/Spigot 1.16+
+        try {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("<#([A-Fa-f0-9]{6})>|&#([A-Fa-f0-9]{6})").matcher(s);
+            StringBuffer buffer = new StringBuffer();
+            while (m.find()) {
+                String hex = m.group(1) != null ? m.group(1) : m.group(2);
+                try {
+                    net.md_5.bungee.api.ChatColor color = net.md_5.bungee.api.ChatColor.of("#" + hex);
+                    m.appendReplacement(buffer, color.toString());
+                } catch (Throwable ignored) {
+                    m.appendReplacement(buffer, "");
+                }
+            }
+            m.appendTail(buffer);
+            s = buffer.toString();
+        } catch (Throwable ignored) {}
         return ChatColor.translateAlternateColorCodes('&', s);
     }
 }

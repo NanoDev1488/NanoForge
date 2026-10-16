@@ -108,6 +108,8 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
                 return handleUpdate(sender);
             case "compile":
                 return handleCompile(sender, args);
+            case "script":
+                return handleScript(sender, args);
             case "wizard":
                 if (!(sender instanceof Player)) {
                     sender.sendMessage(ChatColor.RED + "✖ " + f(m("command.wizard.only-player")));
@@ -708,18 +710,69 @@ public class NanoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano debug <аддон> " + ChatColor.GRAY + "- " + f(m("command.help.debug")));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano update " + ChatColor.GRAY + "- " + f(m("command.help.update")));
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano compile <аддон> [версия] " + ChatColor.GRAY + "- Скомпилировать в .jar");
+        sender.sendMessage(ChatColor.YELLOW + "➤ /nano script <test|eval|disasm> <выражение> " + ChatColor.GRAY + "- Тест NanoScript выражения");
         sender.sendMessage(ChatColor.YELLOW + "➤ /nano wizard " + ChatColor.GRAY + "- " + f(m("command.help.wizard")));
+    }
+
+    private boolean handleScript(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "➤ " + f(m("command.usage-label")) + " /nano script <test|eval|disasm> <выражение>");
+            return true;
+        }
+
+        String sub = args[1].toLowerCase();
+        int exprStart = (sub.equals("test") || sub.equals("eval") || sub.equals("disasm")) ? 2 : 1;
+        if (args.length <= exprStart) {
+            sender.sendMessage(ChatColor.RED + "➤ Введите выражение для вычисления!");
+            return true;
+        }
+
+        String[] exprParts = Arrays.copyOfRange(args, exprStart, args.length);
+        String expr = String.join(" ", exprParts);
+
+        Player player = (sender instanceof Player) ? (Player) sender : null;
+
+        try {
+            if ("disasm".equals(sub)) {
+                ru.nanodev.nanoforge.script.NanoProgram program = ru.nanodev.nanoforge.script.NanoScript.compile(expr);
+                sender.sendMessage(ChatColor.GOLD + "=== NanoScript Disassembly ===");
+                for (String line : program.disassemble().split("\n")) {
+                    sender.sendMessage(ChatColor.AQUA + line);
+                }
+                return true;
+            }
+
+            long t0 = System.nanoTime();
+            ru.nanodev.nanoforge.script.NanoProgram program = ru.nanodev.nanoforge.script.NanoScript.compile(expr);
+            long tCompile = System.nanoTime() - t0;
+
+            ru.nanodev.nanoforge.script.NanoContext ctx = ru.nanodev.nanoforge.script.NanoContext.of(player, null, null);
+            long t1 = System.nanoTime();
+            Object res = ru.nanodev.nanoforge.script.NanoVM.execute(program, ctx);
+            long tExec = System.nanoTime() - t1;
+
+            sender.sendMessage(ChatColor.GREEN + "✔ Результат: " + ChatColor.WHITE + res);
+            sender.sendMessage(ChatColor.GRAY + "Тип: " + (res != null ? res.getClass().getSimpleName() : "null")
+                    + " | Компиляция: " + (tCompile / 1000) + " мкс | Исполнение: " + tExec + " нс");
+        } catch (Throwable t) {
+            sender.sendMessage(ChatColor.RED + "✖ Ошибка выполнения NanoScript: " + t.getMessage());
+        }
+        return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(Arrays.asList("create", "enable", "disable", "list", "menu", "edit", "info", "reload",
-                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug", "update", "compile", "wizard"), args[0]);
+                    "duplicate", "export", "import", "vars", "validate", "get", "set", "diff", "debug", "update", "compile", "script", "wizard"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("create")) {
             return filter(Arrays.asList("addon", "new"), args[1]);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("script")) {
+            return filter(Arrays.asList("test", "eval", "disasm"), args[1]);
         }
 
         if (args.length == 2 && (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable")

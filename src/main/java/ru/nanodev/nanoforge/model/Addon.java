@@ -78,8 +78,14 @@ public class Addon {
     }
 
     public List<String> getEventKeys() {
-        if (!yaml.isConfigurationSection("events")) return java.util.Collections.emptyList();
-        return new java.util.ArrayList<>(yaml.getConfigurationSection("events").getKeys(false));
+        List<String> keys = new java.util.ArrayList<>();
+        if (yaml.isConfigurationSection("events")) {
+            keys.addAll(yaml.getConfigurationSection("events").getKeys(false));
+        }
+        if (yaml.isConfigurationSection("mechanics")) {
+            keys.addAll(yaml.getConfigurationSection("mechanics").getKeys(false));
+        }
+        return keys;
     }
 
     public List<?> getCommandActions(String cmdKey) {
@@ -87,7 +93,29 @@ public class Addon {
     }
 
     public List<?> getEventActions(String eventKey) {
-        return yaml.getList("events." + eventKey + ".actions", java.util.Collections.emptyList());
+        if (yaml.contains("events." + eventKey + ".actions")) {
+            return yaml.getList("events." + eventKey + ".actions", java.util.Collections.emptyList());
+        }
+        if (yaml.contains("mechanics." + eventKey + ".actions")) {
+            return yaml.getList("mechanics." + eventKey + ".actions", java.util.Collections.emptyList());
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    public String getEventCondition(String eventKey) {
+        String cond = yaml.getString("events." + eventKey + ".condition");
+        if (cond != null) return cond;
+        cond = yaml.getString("events." + eventKey + ".if");
+        if (cond != null) return cond;
+        cond = yaml.getString("mechanics." + eventKey + ".condition");
+        if (cond != null) return cond;
+        return yaml.getString("mechanics." + eventKey + ".if");
+    }
+
+    public String getEventTrigger(String eventKey) {
+        String trigger = yaml.getString("events." + eventKey + ".trigger");
+        if (trigger != null) return trigger;
+        return yaml.getString("mechanics." + eventKey + ".trigger", eventKey);
     }
 
     public String getCommandDescription(String cmdKey) {

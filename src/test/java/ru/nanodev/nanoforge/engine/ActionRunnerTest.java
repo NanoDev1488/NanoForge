@@ -516,6 +516,15 @@ class ActionRunnerTest {
         verify(scheduler, never()).runTaskAsynchronously(any(), any(Runnable.class));
     }
 
+    @Test
+    void scriptActionAndShorthandSyntax() {
+        Map<String, Object> scriptAction = action("script");
+        scriptAction.put("code", "5 + 5 * 2");
+        ActionRunner.run(Collections.singletonList(scriptAction), player, null);
+
+        ActionRunner.run(Collections.singletonList("message: player, 'Привет из NanoScript'"), player, null);
+        verify(player).sendMessage("Привет из NanoScript");
+    }
 }
 
 // by t.me/NanoDev_mc
