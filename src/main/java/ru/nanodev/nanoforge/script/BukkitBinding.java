@@ -48,10 +48,12 @@ public final class BukkitBinding {
                 if ("health".equals(p)) {
                     return d.getHealth();
                 } else if ("max_health".equals(p)) {
-                    try {
-                        org.bukkit.attribute.AttributeInstance attr = d.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-                        if (attr != null) return attr.getValue();
-                    } catch (Throwable ignored) {}
+                    if (target instanceof org.bukkit.attribute.Attributable) {
+                        try {
+                            org.bukkit.attribute.AttributeInstance attr = ((org.bukkit.attribute.Attributable) target).getAttribute(Attribute.GENERIC_MAX_HEALTH);
+                            if (attr != null) return attr.getValue();
+                        } catch (Throwable ignored) {}
+                    }
                     return d.getMaxHealth();
                 }
             }
@@ -109,7 +111,7 @@ public final class BukkitBinding {
                 return WorldGuardBridge.isInRegion(p, String.valueOf(args[0]));
             }
             if ("in_group".equals(m) && args.length >= 1) {
-                return LuckPermsBridge.inGroup(p, String.valueOf(args[0]));
+                return LuckPermsBridge.isInGroup(p, String.valueOf(args[0]));
             }
         }
 

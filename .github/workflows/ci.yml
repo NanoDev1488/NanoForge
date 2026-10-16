@@ -37,10 +37,22 @@ jobs:
       - name: Print surefire reports on failure
         if: failure()
         run: |
+          echo "## Surefire Failure Reports" >> $GITHUB_STEP_SUMMARY
           for f in $(find target/surefire-reports -name "*.txt" 2>/dev/null); do
             echo "=== $f ==="
             cat "$f"
+            echo "### $f" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat "$f" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           done
+
+      - name: Upload surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/*.txt
 
       - name: Upload built jar (artifact, не релиз)
         uses: actions/upload-artifact@v4

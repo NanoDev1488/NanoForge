@@ -9,6 +9,7 @@ public final class NanoStackFrame {
     public static final byte TYPE_NUM = 0;
     public static final byte TYPE_OBJ = 1;
     public static final byte TYPE_NULL = 2;
+    public static final byte TYPE_BOOL = 3;
 
     private static final int INITIAL_CAPACITY = 64;
 
@@ -51,7 +52,7 @@ public final class NanoStackFrame {
         ensureCapacity();
         numStack[sp] = val ? 1.0 : 0.0;
         objStack[sp] = null;
-        typeStack[sp] = TYPE_NUM;
+        typeStack[sp] = TYPE_BOOL;
         sp++;
     }
 
@@ -127,7 +128,7 @@ public final class NanoStackFrame {
 
     public boolean isTruthy(int idx) {
         byte t = typeStack[idx];
-        if (t == TYPE_NUM) {
+        if (t == TYPE_BOOL || t == TYPE_NUM) {
             return numStack[idx] != 0.0;
         } else if (t == TYPE_OBJ) {
             Object o = objStack[idx];
@@ -138,7 +139,9 @@ public final class NanoStackFrame {
 
     public Object toObject(int idx) {
         byte t = typeStack[idx];
-        if (t == TYPE_NUM) {
+        if (t == TYPE_BOOL) {
+            return numStack[idx] != 0.0;
+        } else if (t == TYPE_NUM) {
             double v = numStack[idx];
             if (v == (long) v) {
                 return (long) v;
