@@ -342,13 +342,18 @@ public final class NanoParser {
         @Override public void emit(BytecodeEmitter emitter) {
             if (target != null) {
                 target.emit(emitter);
+                for (ExprNode arg : args) {
+                    arg.emit(emitter);
+                }
+                int idx = emitter.addStr(funcName);
+                emitter.emit(NanoOpcode.OP_INVOKE_METHOD, idx, args.size());
+            } else {
+                for (ExprNode arg : args) {
+                    arg.emit(emitter);
+                }
+                int idx = emitter.addStr(funcName);
+                emitter.emit(NanoOpcode.OP_INVOKE, idx, args.size());
             }
-            for (ExprNode arg : args) {
-                arg.emit(emitter);
-            }
-            int idx = emitter.addStr(funcName);
-            int argCount = args.size() + (target != null ? 1 : 0);
-            emitter.emit(NanoOpcode.OP_INVOKE, idx, argCount);
         }
     }
 

@@ -34,6 +34,14 @@ jobs:
       - name: Build and run tests
         run: mvn -B clean verify
 
+      - name: Print surefire reports on failure
+        if: failure()
+        run: |
+          for f in $(find target/surefire-reports -name "*.txt" 2>/dev/null); do
+            echo "=== $f ==="
+            cat "$f"
+          done
+
       - name: Upload built jar (artifact, не релиз)
         uses: actions/upload-artifact@v4
         with:

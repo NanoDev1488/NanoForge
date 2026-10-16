@@ -78,24 +78,34 @@ public final class NanoVM {
                     int argCount = code[ip++];
                     String funcName = strPool[idx];
 
-                    // Заполняем аргументы с вершины стека в обратном порядке
+                    // Аргументы глобальной функции
                     for (int i = argCount - 1; i >= 0; i--) {
                         argsBuf[i] = frame.popObj();
                     }
 
-                    Object result = null;
-                    // Сначала пробуем вызвать глобальную функцию (chance, min, max, etc.)
-                    Object globalRes = BukkitBinding.invokeGlobal(funcName, copyArgs(argsBuf, argCount), context);
-                    if (globalRes != null) {
-                        result = globalRes;
-                    } else if (argCount > 0 && argsBuf[0] != null) {
-                        // Метод объекта target.method(args)
-                        Object target = argsBuf[0];
-                        Object[] methodArgs = copyArgsSlice(argsBuf, 1, argCount);
-                        result = BukkitBinding.invokeMethod(target, funcName, methodArgs, context);
+                    Object result = BukkitBinding.invokeGlobal(funcName, copyArgs(argsBuf, argCount), context);
+
+                    for (int i = 0; i < argCount; i++) {
+                        argsBuf[i] = null;
                     }
 
-                    // Очистка буфера аргументов
+                    frame.pushObj(result);
+                    break;
+                }
+
+                case NanoOpcode.OP_INVOKE_METHOD: {
+                    int idx = code[ip++];
+                    int argCount = code[ip++];
+                    String methodName = strPool[idx];
+
+                    // Аргументы метода объекта
+                    for (int i = argCount - 1; i >= 0; i--) {
+                        argsBuf[i] = frame.popObj();
+                    }
+                    Object target = frame.popObj();
+
+                    Object result = BukkitBinding.invokeMethod(target, methodName, copyArgs(argsBuf, argCount), context);
+
                     for (int i = 0; i < argCount; i++) {
                         argsBuf[i] = null;
                     }

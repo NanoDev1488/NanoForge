@@ -17,7 +17,8 @@ public final class NanoOpcode {
 
     public static final int OP_LOAD_VAR = 6;      // [OP, str_pool_idx]
     public static final int OP_LOAD_PROP = 7;     // [OP, str_pool_idx] (снимает объект со стека, кладёт свойство)
-    public static final int OP_INVOKE = 8;        // [OP, str_pool_idx, arg_count]
+    public static final int OP_INVOKE = 8;        // [OP, str_pool_idx, arg_count] (глобальная функция)
+    public static final int OP_INVOKE_METHOD = 9; // [OP, str_pool_idx, arg_count] (снимает аргументы и target)
 
     public static final int OP_ADD = 10;
     public static final int OP_SUB = 11;
@@ -53,6 +54,7 @@ public final class NanoOpcode {
             case OP_LOAD_VAR: return "LOAD_VAR";
             case OP_LOAD_PROP: return "LOAD_PROP";
             case OP_INVOKE: return "INVOKE";
+            case OP_INVOKE_METHOD: return "INVOKE_METHOD";
             case OP_ADD: return "ADD";
             case OP_SUB: return "SUB";
             case OP_MUL: return "MUL";

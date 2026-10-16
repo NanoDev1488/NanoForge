@@ -47,7 +47,8 @@ public final class NanoProgram {
                     sb.append(" #").append(idx).append(" (\"").append(val).append("\")");
                     break;
                 }
-                case NanoOpcode.OP_INVOKE: {
+                case NanoOpcode.OP_INVOKE:
+                case NanoOpcode.OP_INVOKE_METHOD: {
                     int idx = code[ip++];
                     int args = code[ip++];
                     String name = (idx >= 0 && idx < strPool.length) ? strPool[idx] : "?";
