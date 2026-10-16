@@ -2,14 +2,26 @@
 
 <div align="center">
 
-<img src="https://img.shields.io/badge/Версия-v1.8.0-00FF9C?style=for-the-badge&logoColor=black" alt="Version 1.8.0"/>
+<img src="https://img.shields.io/badge/Версия-v1.9.0-00FF9C?style=for-the-badge&logoColor=black" alt="Version 1.9.0"/>
 <img src="https://img.shields.io/badge/Статус-Release-2c5364?style=for-the-badge" alt="Status"/>
 
 </div>
 
 ---
 
-## ⚡ Версия 1.8.0 *(Текущая)*
+## ⚡ Версия 1.9.0 *(Текущая)*
+
+### 🚀 ɴᴀɴᴏꜱᴄʀɪᴘᴛ (Zero-Allocation Expression Engine & Micro-VM)
+* **Zero-Allocation в тике:** движок вычисляет сложные формулы в кольцевом буфере стека (`ThreadLocal<NanoStackFrame>`), полностью исключая создание мусорных объектов в памяти JVM во время боя и частых событий.
+* **Single-pass Pratt Parser & Constant Folding:** выражения вроде `5 + 5 * 2` мгновенно сворачиваются в `15.0` на этапе синтаксического анализа. Поддерживаются проценты (например `chance(25%)`), математика, логические операции и комментарии.
+* **Стековая Micro-VM:** компактный байткод в плоском массиве примитивов `int[] code`.
+* **Fast-Path Bukkit Binding:** прямой доступ к Bukkit (`player.health`, `player.food`, `victim.*`, `attacker.*`, `event.damage`), проверке прав (`has_perm`), регионам WorldGuard, группам LuckPerms и функциям (`chance`, `min`, `max`, `abs`, `round`, `clamp`).
+* **YAML-интеграция:** условия `condition: "..."`, секции `if: { script: "..." }`, действие `type: script` и динамические математические плейсхолдеры в чате/экшнбарах/титлах (`+{event.damage * 0.35} ❤`).
+* **Инструменты отладки:** внутриигровая команда `/nano script <test|eval|disasm> <выражение>`.
+
+---
+
+## ⚡ Версия 1.8.0
 
 ### ☕ Компилятор YAML в автономный JAR (`/nano compile`)
 * **Автономные плагины:** команда `/nano compile <аддон> [версия]` компилирует аддон или мини-плагин в готовый исполняемый `.jar` в папке `plugins/NanoForge/compiled/`.

@@ -1,6 +1,6 @@
 # BUILD_LOG
 
-## [2026-10-16] Версия 1.8.0 — NanoScript (Zero-Allocation Expression Engine & Micro-VM)
+## [2026-10-16] Версия 1.9.0 — NanoScript (Zero-Allocation Expression Engine & Micro-VM)
 - **Коммит:** `72bee78`
 - **Что сделано:**
   - Реализован легковесный лексер и Pratt-парсер с поддержкой процентов (`25%` -> `0.25`), комментариев, логических и арифметических выражений.
